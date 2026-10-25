@@ -12,9 +12,9 @@ function svgNode(tag, attributes, text) {
 }
 
 export class JourneyMap {
-  constructor({ stages, routes, onStop, onStatus, onExplore = () => {}, onPitch = () => {}, onBearing = () => {} }) {
-    Object.assign(this, { stages, routes, onStop, onStatus, onExplore, onPitch, onBearing });
-    this.viewPitch = null; this.viewBearing = 0;
+  constructor({ stages, routes, onStop, onStatus, onExplore = () => {}, onPitch = () => {}, onBearing = () => {}, onHeight = () => {} }) {
+    Object.assign(this, { stages, routes, onStop, onStatus, onExplore, onPitch, onBearing, onHeight });
+    this.viewPitch = null; this.viewBearing = 0; this.heightOffset = 0;
     this.map = null; this.ready = false; this.stageIndex = 0; this.progress = 0; this.markers = []; this.exploring = false;
     this.container = document.getElementById('schematic');
     this.buildSchematic();
@@ -251,6 +251,33 @@ export class JourneyMap {
       this.map.setFreeCameraOptions(camera);
     }
   }
+  setHeight(value) {
+    if (!this.ready || !this.map || !Number.isFinite(value)) return;
+    const next = clamp(Math.round(value), -1200, 6000), change = next - (this.heightOffset || 0);
+    this.heightOffset = next;
+    this.onHeight(next);
+    if (!change) return;
+    if (!this.exploring && this.cameraPosition && this.cameraAltitude != null) {
+      this.cameraAltitude = Math.max((this.terrainFloor ?? 0) + 500, this.cameraAltitude + change);
+      const position = window.mapboxgl.MercatorCoordinate.fromLngLat(this.cameraPosition, this.cameraAltitude);
+      if (this.entry) this.entry.to.position.z = position.z;
+      else if (!this.nativeMotion) {
+        const camera = this.map.getFreeCameraOptions();
+        camera.position = position;
+        this.map.setFreeCameraOptions(camera);
+      }
+    } else {
+      const camera = this.map.getFreeCameraOptions(), position = camera.position;
+      if (!position?.toAltitude || !position?.toLngLat) return;
+      const terrain = this.map.queryTerrainElevation(position.toLngLat(), { exaggerated: false });
+      if (!Number.isFinite(terrain)) return;
+      const altitude = Math.max(terrain + 500, position.toAltitude() + change);
+      this.cancelCameraMotion();
+      camera.position = window.mapboxgl.MercatorCoordinate.fromLngLat(position.toLngLat(), altitude);
+      this.map.setFreeCameraOptions(camera);
+    }
+  }
+  raiseBy(vertical) { this.setHeight((this.heightOffset || 0) - vertical * 12); }
   lookBy(horizontal, vertical) {
     if (!this.ready || !this.map || this.exploring) return;
     this.viewPitch = clamp((this.viewPitch ?? this.map.getPitch()) - vertical * .25, 0, 85);
@@ -259,16 +286,17 @@ export class JourneyMap {
   bindLookControls(map) {
     const surface = map.getCanvasContainer();
     let pointer;
-    const canLook = event => map === this.map && this.ready && !this.exploring && (event.button === 2 || (event.button === 0 && event.ctrlKey));
+    const canLook = event => map === this.map && this.ready && ((event.shiftKey && [0, 2].includes(event.button)) || (!this.exploring && (event.button === 2 || (event.button === 0 && event.ctrlKey))));
     surface.addEventListener('pointerdown', event => {
       if (!canLook(event)) return;
-      pointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
+      pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, height: event.shiftKey };
       surface.setPointerCapture(event.pointerId);
       event.preventDefault(); event.stopImmediatePropagation();
     }, true);
     surface.addEventListener('pointermove', event => {
       if (!pointer || pointer.id !== event.pointerId) return;
-      this.lookBy(event.clientX - pointer.x, event.clientY - pointer.y);
+      if (pointer.height || event.shiftKey) this.raiseBy(event.clientY - pointer.y);
+      else this.lookBy(event.clientX - pointer.x, event.clientY - pointer.y);
       pointer.x = event.clientX; pointer.y = event.clientY;
       event.preventDefault(); event.stopImmediatePropagation();
     }, true);
@@ -343,7 +371,8 @@ export class JourneyMap {
       return;
     }
     this.preparingFollow = false;
-    const desiredAltitude = Math.max(...samples) + 1700;
+    this.terrainFloor = Math.max(...samples);
+    const desiredAltitude = this.terrainFloor + 1700 + (this.heightOffset || 0);
     this.cameraAltitude = this.cameraAltitude === null ? desiredAltitude : Math.max(desiredAltitude, this.cameraAltitude + (desiredAltitude - this.cameraAltitude) * blend);
     const camera = this.map.getFreeCameraOptions();
     camera.position = window.mapboxgl.MercatorCoordinate.fromLngLat(this.cameraPosition, this.cameraAltitude);

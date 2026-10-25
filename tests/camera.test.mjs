@@ -9,7 +9,7 @@ function cameraFixture(elevations) {
   globalThis.window = { matchMedia: () => ({ matches: false }), mapboxgl: { MercatorCoordinate: { fromLngLat: (position, height) => { altitude = height; return { position, height }; } } } };
   const view = Object.create(JourneyMap.prototype);
   Object.assign(view, {
-    progress: 0, ready: true, stageIndex: 0, exploring: false, cameraPosition: null, cameraAltitude: null, viewPitch: null, viewBearing: 0, onBearing() {},
+    progress: 0, ready: true, stageIndex: 0, exploring: false, cameraPosition: null, cameraAltitude: null, viewPitch: null, viewBearing: 0, heightOffset: 0, onBearing() {}, onHeight() {},
     routes: [prepareRoute([[11, 47], [11.05, 47.05], [11.1, 47.1]])], updateSchema() {},
     map: {
       getSource: () => ({ setData() {} }), stop() {},
@@ -262,4 +262,76 @@ test('right-button pointer gestures adjust the view without activating native pa
   assert.equal(view.viewBearing, 10);
   const left = event({ button: 0 }); listeners.get('pointerdown')(left);
   assert.equal(left.stopped, undefined);
+});
+
+test('height changes move the camera independently of orientation while route playback continues', () => {
+  const { view, player, stats } = manualNavigationFixture();
+  player.play(); view.advanceCamera(view.entry.startedAt + view.entry.duration);
+  view.setPitch(70); view.setBearing(25);
+  const orientation = [...stats().pose.orientation], originalHeight = view.cameraAltitude;
+  view.setHeight(1200);
+  assert.equal(view.cameraAltitude, originalHeight + 1200);
+  assert.deepEqual(stats().pose.orientation, orientation);
+  player.tick(.5);
+  assert.equal(player.state.mode, 'presentation');
+  assert.equal(player.state.status, 'playing');
+  assert.equal(player.state.progress, .05);
+  assert.equal(view.cameraAltitude, originalHeight + 1200);
+  assert.equal(stats().angles.pitch, 70);
+  assert.equal(stats().angles.bearing, view.followHeading + 25);
+  view.setHeight(0);
+  assert.equal(view.cameraAltitude, originalHeight);
+  assert.equal(player.state.status, 'playing');
+});
+test('height limits preserve clearance when terrain rises and reject invalid input', () => {
+  const { view, player } = manualNavigationFixture();
+  player.play(); view.advanceCamera(view.entry.startedAt + view.entry.duration);
+  view.setHeight(-9000);
+  assert.equal(view.heightOffset, -1200);
+  assert.equal(view.cameraAltitude, 1500);
+  view.map.queryTerrainElevation = () => 3000;
+  player.tick(.5);
+  assert.equal(view.cameraAltitude, 3500);
+  view.setHeight(100000);
+  assert.equal(view.heightOffset, 6000);
+  view.setHeight(NaN);
+  assert.equal(view.heightOffset, 6000);
+});
+test('height adjustment during an approach updates its destination and preserves playback', () => {
+  const { view, player } = manualNavigationFixture();
+  player.play();
+  const entry = view.entry, originalZ = entry.to.position.z;
+  view.setHeight(600);
+  assert.equal(view.entry, entry);
+  assert.ok(Math.abs(entry.to.position.z - originalZ - 600 / 40000000) < 1e-12);
+  view.advanceCamera(entry.startedAt + entry.duration);
+  player.tick(.5);
+  assert.equal(view.cameraAltitude, 3300);
+  assert.equal(player.state.progress, .05);
+});
+test('Shift and left-drag change height without box zoom, looking around, or pausing', () => {
+  const { view, player } = manualNavigationFixture();
+  const listeners = new Map(); let captured;
+  const surface = {
+    addEventListener(type, listener) { listeners.set(type, listener); },
+    setPointerCapture(id) { captured = id; }, hasPointerCapture(id) { return captured === id; },
+    releasePointerCapture() { captured = null; }
+  };
+  view.map.getCanvasContainer = () => surface;
+  view.bindLookControls(view.map);
+  const event = (extra = {}) => ({ button: 0, shiftKey: true, pointerId: 1, clientX: 100, clientY: 100, preventDefault() {}, stopImmediatePropagation() { this.stopped = true; }, ...extra });
+  player.play(); view.advanceCamera(view.entry.startedAt + view.entry.duration);
+  const down = event(); listeners.get('pointerdown')(down);
+  assert.equal(down.stopped, true);
+  const mouse = event(); listeners.get('mousedown')(mouse);
+  assert.equal(mouse.stopped, true);
+  listeners.get('pointermove')(event({ clientX: 160, clientY: 50 }));
+  assert.equal(view.heightOffset, 600);
+  assert.equal(view.viewPitch, null);
+  assert.equal(view.viewBearing, 0);
+  player.tick(.5);
+  assert.equal(player.state.status, 'playing');
+  assert.equal(player.state.progress, .05);
+  listeners.get('pointerup')(event());
+  assert.equal(captured, null);
 });

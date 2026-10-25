@@ -190,6 +190,10 @@ async function init() {
   }, onBearing: bearing => {
     $('camera-bearing').value = String(Math.round(bearing));
     text('camera-bearing-value', `${Math.round(bearing)}°`);
+  }, onHeight: height => {
+    $('camera-height').value = String(height);
+    text('camera-height-value', `${height >= 0 ? '+' : ''}${Math.round(height)} m`);
+    $('camera-height').setAttribute('aria-valuetext', `${Math.round(height)} Meter relativ zur automatischen Flughöhe`);
   }, onExplore: () => {
     player.setMode('explore');
     announce('Frei erkunden. Der Flug pausiert. Mit Präsentieren zur geführten Kamera zurückkehren.');
@@ -215,6 +219,8 @@ async function init() {
   $('speed-select').addEventListener('change', e => { player.state.speed = Number(e.target.value); });
   $('camera-pitch').addEventListener('input', event => map.setPitch(Number(event.target.value)));
   $('camera-bearing').addEventListener('input', event => map.setBearing(Number(event.target.value)));
+  $('camera-height').addEventListener('input', event => map.setHeight(Number(event.target.value)));
+  $('camera-height-reset').addEventListener('click', () => map.setHeight(0));
   $('camera-reset').addEventListener('click', () => map.resetView());
   $('overview-button').addEventListener('click', () => { player.pause(); map.overview(); });
   $('gallery-button').addEventListener('click', openGallery);
