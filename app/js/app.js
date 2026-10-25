@@ -8,6 +8,8 @@ import { PhotoCollage, decodePhotoNode } from './photo-collage.js';
 import { PhotoTransition } from './photo-transition.js';
 const photoMotion = new PhotoTransition();
 let photoExitPending = false;
+const playbackSpeeds = [.5, 1, 2, 3, 4, 5, 10, 20, 50];
+const speedLabel = speed => `${speed === .5 ? '0,5' : speed}×`;
 
 const $ = id => document.getElementById(id);
 const text = (id, value) => { $(id).textContent = value ?? ''; };
@@ -187,6 +189,10 @@ function render(state, reason) {
   }
   $('route-progress').value = String(Math.round(state.progress * 1000));
   $('route-progress').setAttribute('aria-valuetext', `${Math.round(state.progress * 100)} Prozent der Etappe`);
+  const speedIndex = playbackSpeeds.indexOf(state.speed);
+  $('speed-range').value = String(speedIndex < 0 ? 1 : speedIndex);
+  $('speed-range').setAttribute('aria-valuetext', speedLabel(state.speed));
+  $('speed-value').value = speedLabel(state.speed);
   if (reason === 'pause') map.pauseCamera();
   if (reason === 'stop-jump' || reason === 'seek') map.focusStop(state.progress);
   else map.setProgress(state.progress, state.started && state.mode === 'presentation' && (state.status === 'playing' || reason === 'seek' || reason === 'stop'), Math.max(.016, (performance.now() - lastFrame) / 1000));
@@ -322,7 +328,11 @@ async function init() {
   $('start-button').addEventListener('click', () => player.play());
   $('play-button').addEventListener('click', () => { closeDialogs(); collage.active ? finishPhoto() : player.toggle(); });
   $('route-progress').addEventListener('input', e => { closeDialogs(); player.seek(Number(e.target.value) / 1000); });
-  $('speed-select').addEventListener('change', e => { player.state.speed = Number(e.target.value); });
+  $('speed-range').addEventListener('input', e => {
+    player.state.speed = playbackSpeeds[Number(e.target.value)];
+    const label = speedLabel(player.state.speed);
+    e.target.setAttribute('aria-valuetext', label); $('speed-value').value = label;
+  });
   $('recenter-button').addEventListener('click', () => {
     closeDialogs();
     if (player.state.mode === 'explore') player.setMode('presentation');

@@ -54,8 +54,12 @@
         <button id="play-button" class="play-button" aria-label="Flug starten">▶</button>
         <label class="sr-only" for="route-progress">Fortschritt der Etappe</label><input id="route-progress" class="route-progress" type="range" min="0" max="1000" value="0" step="1" aria-valuetext="Noch nicht gestartet">
         <button id="recenter-button" class="recenter-button" type="button" aria-label="Zur aktuellen Routenposition zentrieren" title="Zur aktuellen Routenposition zurückkehren" disabled><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 1v4m0 14v4M1 12h4m14 0h4"/></svg><span>Zentrieren</span></button>
-        <label for="speed-select" class="sr-only">Fluggeschwindigkeit</label><select id="speed-select" aria-label="Fluggeschwindigkeit"><option value="0.5">0,5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="3">3×</option><option value="4">4×</option><option value="5">5×</option><option value="10">10×</option><option value="20">20×</option><option value="50">50×</option></select>
       </section>
+      <aside class="speed-rail" aria-label="Fluggeschwindigkeit">
+        <output id="speed-value" for="speed-range" aria-live="polite">1×</output>
+        <label class="sr-only" for="speed-range">Fluggeschwindigkeit</label>
+        <input id="speed-range" type="range" min="0" max="8" step="1" value="1" aria-orientation="vertical" aria-valuetext="1×">
+      </aside>
     </main>
   </div>
 
