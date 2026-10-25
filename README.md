@@ -29,7 +29,7 @@ Mapbox GL JS verwendet bereits seinen eigenen persistenten Browsercache `mapbox-
 
 Eine Etappe laden und abspielen, dann eine andere Etappe wählen und zur ersten zurückkehren. Auch nach einem Neuladen der App können gültige Einträge wiederverwendet werden. Immer denselben Browser und `http://localhost:5173` verwenden; andere Browserprofile und Ports haben eigene Speicherbereiche. Private Fenster und das Löschen der Browserdaten können die Speicherung verhindern oder entfernen.
 
-Die zusätzlichen Kacheln im Arbeitsspeicher werden auf 64 bis 256 Einträge pro Quelle begrenzt. Der persistente Cache bleibt der native Mapbox-Cache mit dessen eigener Größenverwaltung und Ablaufprüfung; die App erweitert seine Speicherdauer nicht. Er ist keine vollständige Offline-Sicherung aller Etappen. Satellitenbilder und Höhendaten verwenden zusätzlich den nachfolgend beschriebenen Festplattencache. Ein Service Worker wird nicht verwendet. Die Browsercache-Anzeige erfasst diesen separaten Festplattenspeicher nicht.
+Die zusätzlichen Kacheln im Arbeitsspeicher werden auf bis zu 1.024 Einträge pro Quelle begrenzt. Der persistente Cache bleibt der native Mapbox-Cache mit dessen eigener Größenverwaltung und Ablaufprüfung; die App erweitert seine Speicherdauer nicht. Er ist keine vollständige Offline-Sicherung aller Etappen. Satellitenbilder und Höhendaten verwenden zusätzlich den nachfolgend beschriebenen Festplattencache. Ein Service Worker wird nicht verwendet. Die Browsercache-Anzeige erfasst diesen separaten Festplattenspeicher nicht.
 
 ### Karten auf diesem Mac speichern
 
@@ -55,9 +55,9 @@ Neue Konten ohne Zahlungsmethode haben einen eingeschränkten Testzugang. Laut [
 
 ## Stand der Inhalte
 
-Enthalten sind die **GPX-Gesamtstrecke München–Venedig und sieben erste Referenzabschnitte**, zehn ausdrücklich beispielhafte Fotostopps und elf Bildplätze. Es wurden keine eigenen Reisefotos, Reisedaten oder Erlebnisse erfunden. Persönliche Tagesgrenzen und Fotostopps müssen noch mit deiner Reise abgeglichen werden.
+Enthalten sind die **GPX-Gesamtstrecke München–Venedig und alle 27 Tagesetappen** in vier Wochenkapiteln. Zehn Fotostopps und elf Bildplätze sind weiterhin ausdrücklich Beispiele. Es wurden keine eigenen Fotos, Reisedaten oder Erlebnisse erfunden. Die Tagesabschnitte folgen einem veröffentlichten Referenztrack und müssen noch mit deiner tatsächlich begangenen Linie abgeglichen werden.
 
-Die Struktur ist auf beliebig viele Etappen vorbereitet. Alle 27 persönlichen Reisetage werden ergänzt, sobald ihre Daten und Inhalte vorliegen. Die Gesamtstrecke ist bereits vollständig als Referenz auswählbar und wird nicht als zusätzlicher persönlicher Reisetag gezählt.
+Die 28-Tage-Variante ist für deine 27 Reisetage angepasst: Fedaia–Alleghe und Alleghe–Rifugio Tissi sind als eine Tagesetappe Fedaia–Rifugio Tissi zusammengefasst; eine Übernachtung in Alleghe ist nicht eingetragen. Der Linienverlauf dieser Etappe stammt weiterhin aus dem Referenztrack und ist keine bestätigte Aufzeichnung deiner direkten Variante. Die Etappe zum Rifugio 7° Alpini ist als Schiara-Überquerung mit Klettersteig markiert; auch deren Linie ist eine Referenz.
 
 ### GPX-Referenzroute
 
@@ -65,7 +65,7 @@ Die unveränderte Quelldatei liegt unter `app/data/routes/traumpfad-muenchen-ven
 
 Quelle: [Fastest Known Time – Traumpfad München–Venedig](https://fastestknowntime.com/route/traumpfad-munchen-venedig-germany-austria-italy), Datei „traumpfad muenchen venedig -komplett-.gpx“. Ursprünglicher Autor laut GPX: Björn Mußmann – Outdooractive Community, [Originaltour 104193538](https://www.outdooractive.com/r/104193538), Stand 23.08.2018, heruntergeladen am 25.10.2026. 35.524 Punkte einschließlich Höhenangaben, ca. 545 km. Es ist ein veröffentlichter Referenztrack mit Varianten und Fährüberfahrt, keine persönliche Aufzeichnung und keine Zusicherung aktueller Begehbarkeit.
 
-Die sieben ersten Abschnitte sind unveränderte, aufeinanderfolgende Ausschnitte dieser Punktfolge. Ihre Grenzen wurden am Track angenähert. Der siebte Abschnitt endet in Wattens: Die veröffentlichte Variante passiert Hall nicht direkt; eine erfundene Verbindung nach Hall wurde vermieden. Die ursprünglichen schematischen Dateien sind unter `.cache/routes-before-gpx/` gesichert.
+Die 27 Tagesabschnitte sind aufeinanderfolgende Ausschnitte dieser Punktfolge. Ihre Grenzen wurden anhand der veröffentlichten 28-Tage-Abfolge und erkennbarer Etappenorte angenähert; die Tagesgrenzen sind nicht persönlich bestätigt. Die Linie ist deshalb ein Referenzverlauf und keine metergenaue Aufzeichnung deiner Wanderung. Der siebte Abschnitt endet in Wattens: Die veröffentlichte Variante passiert Hall nicht direkt; eine erfundene Verbindung nach Hall wurde vermieden. Die ursprünglichen schematischen Dateien sind unter `.cache/routes-before-gpx/` gesichert.
 
 Die Punktabstände wurden geprüft. Der größte Abstand beträgt rund 1,36 km nahe Sottoguda (11.905360 / 46.441406 bis 11.906199 / 46.429194); dieser Teil ist im Original nur grob beschrieben und wird unverändert übernommen. Die Linie wird dort nicht als metergenauer Weg ausgegeben. Die Fährstrecke nach Venedig bleibt Bestandteil der Quelle. Fotostopps bleiben ausdrücklich Beispiele an ungefähren Positionen.
 
