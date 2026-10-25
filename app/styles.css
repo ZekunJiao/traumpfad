@@ -17,8 +17,8 @@ dialog{border:0;padding:30px;background:var(--paper);color:var(--ink);border-rad
 
 .cache-panel p{font-size:13px;color:#6c796b;line-height:1.7}.cache-panel #cache-message{padding:12px;background:#e8ece1;border-radius:4px;color:var(--ink)}.cache-panel .field-help{font-size:11px}
 
-/* Photo stops live in the map, without a modal surface or a backdrop. */
-.photo-collage{position:absolute;inset:0;z-index:9;pointer-events:none;color:var(--paper)}
+/* Photo stops stay over the map; the visible overlay also catches outside clicks. */
+.photo-collage{position:absolute;inset:0;z-index:9;pointer-events:none;color:var(--paper)}.photo-collage.is-visible{pointer-events:auto}
 .collage-images{position:absolute;inset:0;pointer-events:none}
 .collage-card{position:absolute;margin:0;opacity:0;transform:translateY(14px) scale(.98);transition:opacity 400ms ease,transform 400ms ease;pointer-events:none;max-width:calc(100% - 40px)}
 .photo-collage.is-visible .collage-card.is-shown{opacity:1;transform:translateY(0) scale(1);transition-duration:650ms;transition-timing-function:cubic-bezier(.2,.7,.2,1);transition-delay:var(--photo-delay,0ms)}
@@ -29,6 +29,7 @@ dialog{border:0;padding:30px;background:var(--paper);color:var(--ink);border-rad
 .collage-slot-1 .collage-visual{height:var(--collage-left-height,180px)}
 .collage-slot-2 .collage-visual{height:clamp(100px,calc(var(--map-height,800px)*.18),200px)}
 .collage-visual img{display:block;width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;box-shadow:0 12px 32px #071c2366;border-radius:3px}
+.photo-collage.is-visible .collage-card.is-shown{pointer-events:auto}.collage-close{position:absolute;top:8px;right:8px;z-index:2;display:grid;place-items:center;width:38px;height:38px;border:1px solid #f4f1e966;border-radius:50%;background:#102b28d9;color:var(--paper);font-size:27px;line-height:1;pointer-events:auto;box-shadow:0 2px 12px #071c2366}.collage-close:hover{background:#183b36;color:var(--gold)}.collage-close:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
 .collage-visual .sample-image{min-height:0;height:100%;border-radius:3px;padding:20px;box-shadow:0 12px 32px #071c2366}
 .collage-visual .sample-symbol{font-size:50px;margin-bottom:8px}.collage-visual .sample-image h3{font-size:24px;margin-bottom:8px}.collage-visual .sample-image p{font-size:10px;margin-bottom:0}
 .collage-card figcaption{padding:9px 12px;margin-top:5px;border-radius:3px;background:linear-gradient(90deg,#102b28dd,#102b2899);text-shadow:0 1px 3px #0006}

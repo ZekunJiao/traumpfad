@@ -272,11 +272,15 @@ function renderCollage(state) {
       const card = element('figure', `collage-card collage-slot-${index}`);
       card.style.setProperty('--photo-delay', `${index * 150}ms`);
       const visual = element('div', 'collage-visual'); visual.append(node);
+      const close = element('button', 'collage-close', '×');
+      close.type = 'button';
+      close.setAttribute('aria-label', 'Foto schließen und Reise fortsetzen');
+      close.addEventListener('click', event => { event.stopPropagation(); finishPhoto(); });
       const caption = element('figcaption');
       caption.append(element('strong', '', photoDisplayTitle(photo, state.stop.title)));
       const copy = photo?.caption || state.stop.caption;
       if (copy) caption.append(element('span', '', copy));
-      card.append(visual, caption); images.append(card); return card;
+      card.append(visual, close, caption); images.append(card); return card;
     });
     layoutCollage();
     // Establish the start styles once; CSS handles stagger and interrupted fades.
@@ -769,6 +773,10 @@ async function init() {
   $('collage-hide').addEventListener('click', () => finishPhoto(false));
   $('collage-previous').addEventListener('click', () => collage.move(-1));
   $('collage-next').addEventListener('click', () => collage.move(1));
+  $('photo-collage').addEventListener('click', event => {
+    if (!collage.active || event.target.closest('.collage-card, button')) return;
+    finishPhoto();
+  });
   for (const button of document.querySelectorAll('[data-close]')) button.addEventListener('click', () => $(button.dataset.close).close());
   for (const button of document.querySelectorAll('[data-mode]')) button.addEventListener('click', () => { closeDialogs(); player.setMode(button.dataset.mode); });
   document.querySelector('.brand').addEventListener('click', e => { e.preventDefault(); closeDialogs(); player.home(); map.overview(); });

@@ -17,6 +17,7 @@
       "id": "woche-01",
       "title": "Woche 1 · Voralpen und Karwendel",
       "stageIds": [
+        "tag-00",
         "tag-01",
         "tag-02",
         "tag-03",
@@ -136,6 +137,33 @@
           "caption": "",
           "photoIds": [
             "upload-203cada1-8182-4909-8b60-5a4a73d703c5"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tag-00",
+      "day": 0,
+      "date": null,
+      "title": "Gotzinger Platz · München",
+      "location": {
+        "name": "Gotzinger Platz, München",
+        "coordinates": [
+          11.55047,
+          48.1179
+        ]
+      },
+      "isPointStage": true,
+      "description": "Ein einzelner Standpunkt ungefähr am Gotzinger Platz. Er ist nicht mit der Wanderroute verbunden und markiert weder Start noch Ende einer Etappe.",
+      "stops": [
+        {
+          "id": "fotopunkt-tag-00",
+          "progress": 0,
+          "title": "Daheim vor dem Aufbruch",
+          "approximate": true,
+          "caption": "Hier kannst du ein Foto und deine Erinnerung an den Ort vor dem Aufbruch ergänzen.",
+          "photoIds": [
+            "demo-tag-00"
           ]
         }
       ]
@@ -1314,6 +1342,13 @@
       "title": "IMG_8567",
       "caption": "",
       "placeholder": false
+    },
+    {
+      "id": "demo-tag-00",
+      "stageId": "tag-00",
+      "placeholder": true,
+      "title": "Ein Foto vor dem Aufbruch",
+      "caption": "Noch kein persönliches Foto hinzugefügt."
     }
   ],
   "routeDownload": "data/routes/traumpfad-muenchen-venedig.gpx"
