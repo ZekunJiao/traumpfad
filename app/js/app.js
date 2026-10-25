@@ -509,7 +509,8 @@ async function uploadFile(file, stage, stop) {
   const assetId = crypto.randomUUID(), photoId = `upload-${assetId}`;
   const send = async (blob, variant, contentType) => {
     const response = await fetch('/api/media', { method: 'POST', headers: { 'Content-Type': contentType, 'X-Asset-Id': assetId, 'X-Asset-Variant': variant }, body: blob });
-    const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Datei konnte nicht gespeichert werden.');
+    const data = await readApiResponse(response);
+    if (!response.ok || !data.file) throw new Error(data.error || `Upload fehlgeschlagen (HTTP ${response.status}). Prüfe, ob der lokale Traumpfad-Server läuft.`);
     return data.file;
   };
   const filePath = await send(file, 'original', mime);
@@ -522,6 +523,12 @@ async function uploadFile(file, stage, stop) {
     stop.photoIds.push(photoId);
   }
 }
+async function readApiResponse(response) {
+  const body = await response.text();
+  if (!body.trim()) return { error: `Der lokale Server hat leer geantwortet (HTTP ${response.status}). Stoppe Traumpfad mit Ctrl+C und starte npm start neu, damit die aktuelle Upload-Funktion geladen wird.` };
+  try { return JSON.parse(body); }
+  catch { return { error: `Unerwartete Serverantwort (HTTP ${response.status}): ${body.slice(0, 220)}` }; }
+}
 async function saveEditorChanges() {
   if (editorBusy) return;
   const stop = editorStop();
@@ -531,7 +538,7 @@ async function saveEditorChanges() {
   editorBusy = true; $('editor-save').disabled = true; text('editor-message', 'Änderungen werden auf diesem Mac gespeichert …');
   try {
     const response = await fetch('/api/journey', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(journey) });
-    const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Speichern fehlgeschlagen.');
+    const data = await readApiResponse(response); if (!response.ok || !data.saved) throw new Error(data.error || `Speichern fehlgeschlagen (HTTP ${response.status}).`);
     $('editor-message').dataset.error = 'false'; text('editor-message', 'Gespeichert. Bilder, Videos und Fotopunkte bleiben lokal auf diesem Mac.');
     $('demo-label').hidden = !journey.demo; map.refreshStops(); renderEditor();
   } catch (error) { $('editor-message').dataset.error = 'true'; text('editor-message', error.message); }
@@ -552,9 +559,8 @@ function initEditor() {
   $('editor-stop-caption').addEventListener('input', () => { const stop = editorStop(); if (stop) stop.caption = $('editor-stop-caption').value; });
   $('editor-add-stop').addEventListener('click', () => beginMapPlacement('new'));
   $('editor-move-stop').addEventListener('click', () => beginMapPlacement('move'));
-  $('editor-files').addEventListener('change', async event => {
-    const files = [...event.target.files], stage = journey.stages[editorStageIndex()], stop = editorStop();
-    event.target.value = '';
+  async function uploadEditorFiles(files) {
+    const stage = journey.stages[editorStageIndex()], stop = editorStop();
     if (!files.length || editorBusy) return;
     editorBusy = true; $('editor-save').disabled = true; $('editor-files').disabled = true; $('editor-stage').disabled = true; $('editor-stop').disabled = true;
     try {
@@ -565,6 +571,20 @@ function initEditor() {
       $('editor-message').dataset.error = 'false'; text('editor-message', `${files.length} Datei${files.length === 1 ? '' : 'en'} hinzugefügt. Änderungen noch speichern.`); renderEditor();
     } catch (error) { $('editor-message').dataset.error = 'true'; text('editor-message', error.message); renderEditor(); }
     finally { editorBusy = false; $('editor-save').disabled = false; $('editor-files').disabled = false; $('editor-stage').disabled = false; $('editor-stop').disabled = false; }
+  }
+  const uploadZone = document.querySelector('.editor-upload');
+  $('editor-files').addEventListener('change', event => {
+    const files = [...event.target.files]; event.target.value = ''; uploadEditorFiles(files);
+  });
+  uploadZone.addEventListener('dragover', event => { event.preventDefault(); if (!editorBusy) uploadZone.classList.add('is-dragover'); });
+  uploadZone.addEventListener('dragenter', event => { event.preventDefault(); if (!editorBusy) uploadZone.classList.add('is-dragover'); });
+  uploadZone.addEventListener('dragleave', event => {
+    event.preventDefault();
+    if (!uploadZone.contains(event.relatedTarget)) uploadZone.classList.remove('is-dragover');
+  });
+  uploadZone.addEventListener('drop', event => {
+    event.preventDefault(); uploadZone.classList.remove('is-dragover');
+    if (!editorBusy) uploadEditorFiles([...event.dataTransfer.files]);
   });
   $('editor-save').addEventListener('click', saveEditorChanges);
 }

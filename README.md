@@ -125,7 +125,7 @@ GPS-Koordinaten in Fotos werden für diese Reise nicht vorausgesetzt. Der Import
 
 Starte die App mit `npm start` und klicke oben auf **Bearbeiten**. Wähle eine Etappe und einen vorhandenen Fotopunkt oder setze einen neuen Punkt auf der Karte. Zum Verschieben wählst du einen Fotopunkt und klickst auf **Ausgewählten Punkt auf Karte verschieben**; anschließend klickst du auf die gewünschte Stelle an der Route. Das funktioniert auch in der schematischen Vorschau.
 
-Über **Bilder oder Videos hinzufügen** kannst du mehrere Dateien auf einmal an den ausgewählten Fotopunkt hängen. Sie erscheinen dort der Reihe nach und zusätzlich in der Tagesgalerie. JPEG, PNG, WebP, AVIF, GIF sowie MP4, WebM und MOV bis 200 MB pro Datei werden unterstützt. Eine Collage kannst du als Bilddatei hochladen. Mit **Änderungen speichern** bleiben die Inhalte in `app/data/journey.json` und `app/assets/photos/` auf diesem Mac. Es gibt keine Übertragung an einen externen Dienst.
+Über **Bilder oder Videos hinzufügen** kannst du Dateien auswählen oder sie direkt in das gestrichelte Feld ziehen. Mehrere Dateien auf einmal werden an den ausgewählten Fotopunkt gehängt, erscheinen dort der Reihe nach und zusätzlich in der Tagesgalerie. JPEG, PNG, WebP, AVIF, GIF sowie MP4, WebM und MOV bis 200 MB pro Datei werden unterstützt. Eine Collage kannst du als Bilddatei hochladen. Mit **Änderungen speichern** bleiben die Inhalte in `app/data/journey.json` und `app/assets/photos/` auf diesem Mac. Es gibt keine Übertragung an einen externen Dienst.
 
 Für viele Originalfotos mit automatischer Tageszuordnung bleibt der unten beschriebene Import über `Material/fotos-originale/` verfügbar.
 
