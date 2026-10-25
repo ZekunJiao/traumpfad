@@ -37,7 +37,7 @@ export async function createTileAPI(root, options = {}) {
           let result;
           if (request.method === 'HEAD') {
             const stored = await cache.read(tile);
-            if (!stored?.fresh) throw failure(404, 'Keine gültige Kachel gespeichert.');
+            if (!stored?.cached) throw failure(404, 'Keine gespeicherte Kachel verfügbar.');
             result = { ...stored, fetched: stored.row.fetched, expires: stored.row.expires, cache: 'hit' };
           } else result = await cache.get(resource, token, { signal: controller.signal, referer: origin + '/' });
           if (response.destroyed) return true;

@@ -44,7 +44,7 @@ test('HTTP freshness respects Age, no-cache, no-store and already expired respon
   for (const cc of ['no-cache,max-age=100', 'no-store,max-age=100']) assert.equal(expiresAt({ 'cache-control': cc }, now), now);
 });
 
-test('fresh disk hits survive restart and are shared across worktree servers without upstream requests', async t => {
+test('saved disk hits survive restart and are shared across worktree servers without upstream requests', async t => {
   let calls = 0;
   const { cache, directory } = await fixture(t, { fetcher: async () => { calls++; return image({ Vary: 'Origin, Accept-Encoding' }); } });
   assert.equal((await cache.get(resource, token)).cache, 'miss');
@@ -59,20 +59,21 @@ test('fresh disk hits survive restart and are shared across worktree servers wit
   assert.equal(metadata.includes(Buffer.from(token)), false);
 });
 
-test('stale entries revalidate with ETag and never extend freshness on a failed request', async t => {
+test('expired disk entries are reused without contacting Mapbox', async t => {
   let now = Date.parse('2026-10-25T12:00:00Z'), calls = 0;
-  const { cache } = await fixture(t, { now: () => now, fetcher: async (url, options) => {
+  const { cache } = await fixture(t, { now: () => now, fetcher: async () => {
     calls++;
-    if (calls === 1) return image({ Date: new Date(now).toUTCString(), ETag: 'test-etag', 'Cache-Control': 'max-age=1' });
-    assert.equal(options.headers['If-None-Match'], 'test-etag');
-    if (calls === 2) return new Response(null, { status: 304, headers: { Date: new Date(now).toUTCString(), 'Cache-Control': 'max-age=30' } });
-    return new Response('denied', { status: 403 });
+    return image({ Date: new Date(now).toUTCString(), ETag: 'test-etag', 'Cache-Control': 'max-age=1' });
   } });
   await cache.get(resource, token); now += 2000;
-  assert.equal((await cache.get(resource, token)).cache, 'revalidated');
-  now += 31000;
-  await assert.rejects(cache.get(resource, token), error => error.status === 403);
-  assert.equal((await cache.read(parseTile(resource, token))).fresh, false);
+  const reused = await cache.get(resource, token);
+  assert.equal(reused.cache, 'hit');
+  assert.deepEqual(reused.body, png);
+  assert.equal(calls, 1);
+  assert.equal((await cache.read(parseTile(resource, token))).cached, true);
+  const status = await cache.status(digest(token));
+  assert.equal(status.total, 1);
+  assert.equal(status.expired, undefined);
 });
 
 test('no-store and invalid image responses never become disk hits', async t => {
@@ -117,7 +118,7 @@ test('a corrupt file is detected, replaced, and never served as a valid cache hi
   assert.equal(calls, 2);
 });
 
-test('disk eviction accounts for metadata and temporary reservations and evicts expired files first', async t => {
+test('disk eviction accounts for metadata and temporary reservations', async t => {
   let now = Date.now();
   const bigImage = Buffer.concat([png, Buffer.alloc(80000)]);
   const { cache, directory } = await fixture(t, { limitBytes: 700000, maxTileBytes: 90000, now: () => now, fetcher: async () => image({ 'Cache-Control': 'max-age=1' }, bigImage) });
@@ -167,17 +168,17 @@ test('prefetch counts upstream attempts, resumes disk hits, and pauses immediate
   await assert.rejects(jobs.start(token, allowance()), error => error.status === 429);
 });
 
-test('completed work survives a server restart and fresh tiles are not requested again', async t => {
+test('completed work survives a server restart and saved tiles are not requested again', async t => {
   let calls = 0;
   const { cache, directory } = await fixture(t, { fetcher: async () => { calls++; return image(); } });
   const { jobs, id, namespace } = seedJob(cache, [resource, '/v4/mapbox.mapbox-terrain-dem-v1/1/0/0.webp']);
   await jobs.start(token, allowance()); await jobs.runs.get(id)?.promise;
-  assert.equal(jobs.summary(namespace).fresh, 2);
+  assert.equal(jobs.summary(namespace).cached, 2);
   await jobs.close(); await cache.close();
   const restarted = await TileCache.open(directory, { intervalMs: 0, fetcher: () => assert.fail('fresh planned tiles must not fetch') });
   const resumed = new TileJobs(restarted, '');
   await resumed.start(token, allowance()); await resumed.runs.get(id)?.promise;
-  assert.equal(resumed.summary(namespace).fresh, 2);
+  assert.equal(resumed.summary(namespace).cached, 2);
   assert.equal(calls, 2);
   await resumed.close(); await restarted.close();
 });
@@ -240,14 +241,14 @@ test('the complete GPX plan uses observed satellite and raster-v1 DEM variants w
   assert.equal(calls, 2);
 });
 
-test('missing provider coverage is reported separately and is never counted as a valid image', async t => {
+test('missing provider coverage is reported separately and is never counted as a saved image', async t => {
   const { cache } = await fixture(t, { fetcher: async url => new URL(url).pathname.includes('terrain') ? new Response('no coverage', { status: 404 }) : image() });
   const { jobs, id, namespace } = seedJob(cache, [resource, '/raster/v1/mapbox.mapbox-terrain-dem-v1/1/0/0.webp']);
   t.after(() => jobs.close());
   await jobs.start(token, allowance()); await jobs.runs.get(id)?.promise;
   const summary = jobs.summary(namespace);
   assert.equal(summary.state, 'complete');
-  assert.equal(summary.fresh, 1); assert.equal(summary.unavailable, 1);
+  assert.equal(summary.cached, 1); assert.equal(summary.unavailable, 1);
   assert.equal((await cache.status(namespace)).total, 1);
   assert.equal(Object.values(summary.remaining).reduce((a, b) => a + b), 0);
 });

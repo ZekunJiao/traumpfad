@@ -20,13 +20,13 @@ export class TileJobs {
   summary(namespace) {
     const job = this.current(namespace);
     if (!job) return null;
-    const groups = this.db.prepare(`SELECT i.source,count(*) AS total,sum(CASE WHEN t.expires>? THEN 1 ELSE 0 END) AS fresh,sum(CASE WHEN i.done=2 THEN 1 ELSE 0 END) AS unavailable FROM items i LEFT JOIN tiles t ON t.key=i.key WHERE i.job=? GROUP BY i.source`).all(this.cache.now(), job.id);
-    const planned = groups.reduce((n, row) => n + row.total, 0), fresh = groups.reduce((n, row) => n + row.fresh, 0);
+    const groups = this.db.prepare(`SELECT i.source,count(*) AS total,sum(CASE WHEN t.key IS NOT NULL THEN 1 ELSE 0 END) AS cached,sum(CASE WHEN i.done=2 THEN 1 ELSE 0 END) AS unavailable FROM items i LEFT JOIN tiles t ON t.key=i.key WHERE i.job=? GROUP BY i.source`).all(job.id);
+    const planned = groups.reduce((n, row) => n + row.total, 0), cached = groups.reduce((n, row) => n + row.cached, 0);
     const unavailable = groups.reduce((n, row) => n + row.unavailable, 0);
-    const remaining = Object.fromEntries(groups.map(row => [row.source, row.total - row.fresh - row.unavailable]));
+    const remaining = Object.fromEntries(groups.map(row => [row.source, row.total - row.cached - row.unavailable]));
     const averages = Object.fromEntries(this.db.prepare('SELECT source,avg(size) AS n FROM tiles WHERE namespace=? GROUP BY source').all(namespace).map(row => [row.source, row.n]));
     const estimatedBytes = groups.reduce((n, row) => n + row.total * (averages[row.source] || (row.source === SOURCES[0] ? 100000 : 150000)), 0);
-    return { id: job.id, state: job.state, message: job.message, planned, fresh, unavailable, remaining, attempts: job.attempts, transferred: job.transferred, retryAt: job.retryAt, estimatedBytes: Math.ceil(estimatedBytes), estimatedSeconds: Math.ceil(Object.values(remaining).reduce((a, b) => a + b, 0) * Math.max(.15, this.cache.intervalMs / 1000)), estimateBasedOnCache: groups.every(row => Boolean(averages[row.source])), variantsReady: !this.db.prepare("SELECT 1 FROM items WHERE job=? AND resource='' LIMIT 1").get(job.id) };
+    return { id: job.id, state: job.state, message: job.message, planned, cached, unavailable, remaining, attempts: job.attempts, transferred: job.transferred, retryAt: job.retryAt, estimatedBytes: Math.ceil(estimatedBytes), estimatedSeconds: Math.ceil(Object.values(remaining).reduce((a, b) => a + b, 0) * Math.max(.15, this.cache.intervalMs / 1000)), estimateBasedOnCache: groups.every(row => Boolean(averages[row.source])), variantsReady: !this.db.prepare("SELECT 1 FROM items WHERE job=? AND resource='' LIMIT 1").get(job.id) };
   }
   async plan(token) {
     const namespace = digest(token), old = this.current(namespace);
@@ -80,7 +80,7 @@ export class TileJobs {
     const absoluteBudget = { satellite: job.satelliteAttempts + budget.satellite, terrain: job.terrainAttempts + budget.terrain, combined: job.attempts + budget.combined };
     this.cache.transaction(() => {
       if (this.db.prepare("SELECT 1 FROM jobs WHERE state='running' AND lease>? LIMIT 1").get(this.cache.now())) throw failure(409, 'Ein anderer Vorabdownload läuft bereits.');
-      this.db.prepare("UPDATE items SET done=0 WHERE job=? AND done=1 AND key NOT IN(SELECT key FROM tiles WHERE expires>?)").run(job.id, this.cache.now());
+      this.db.prepare("UPDATE items SET done=0 WHERE job=? AND done=1 AND key NOT IN(SELECT key FROM tiles)").run(job.id);
       this.db.prepare("UPDATE jobs SET state='running',updated=?,lease=?,owner=?,budgets=?,message='',retryAt=0 WHERE id=?").run(this.cache.now(), this.cache.now() + 60000, this.cache.owner, JSON.stringify(absoluteBudget), job.id);
     });
     const controller = new AbortController();
@@ -119,7 +119,7 @@ export class TileJobs {
         claimed.add(item.key);
         try {
           const result = await this.cache.get(item.resource, token, { signal: controller.signal, priority: 1, referer, onAttempt: source => this.attempt(jobId, source) });
-          if (result.cache === 'bypass' || result.expires <= this.cache.now()) throw failure(409, result.reason === 'capacity' ? 'Speicherlimit erreicht. Vorbereitung pausiert.' : 'Quelle erlaubt keine ausreichend lange Zwischenspeicherung. Vorbereitung pausiert.');
+          if (result.cache === 'bypass') throw failure(409, result.reason === 'capacity' ? 'Speicherlimit erreicht. Vorbereitung pausiert.' : 'Quelle erlaubt keine Zwischenspeicherung. Vorbereitung pausiert.');
           this.db.prepare('UPDATE items SET done=1 WHERE job=? AND key=?').run(jobId, item.key);
           const networkBytes = result.networkBytes || 0;
           this.db.prepare('UPDATE jobs SET transferred=transferred+? WHERE id=?').run(networkBytes, jobId);
@@ -138,7 +138,7 @@ export class TileJobs {
       const failed = outcomes.find(result => result.status === 'rejected');
       if (failed) throw firstError || failed.reason;
       const current = this.db.prepare('SELECT state FROM jobs WHERE id=?').get(jobId);
-      if (current?.state === 'running') this.db.prepare("UPDATE jobs SET state='complete',message='Downloadlauf beendet. Gültigkeit vor der Präsentation erneut prüfen.',lease=0 WHERE id=?").run(jobId);
+      if (current?.state === 'running') this.db.prepare("UPDATE jobs SET state='complete',message='Downloadlauf beendet. Gespeicherte Kacheln werden bis zur Speicherbereinigung wiederverwendet.',lease=0 WHERE id=?").run(jobId);
     } catch (error) {
       controller.abort();
       const status = error.status === 401 || error.status === 403 ? 'error' : 'paused';

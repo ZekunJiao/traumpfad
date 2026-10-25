@@ -11,13 +11,13 @@ export function initDiskCache({ getToken }) {
   };
   function render() {
     if (!state) return;
-    $('disk-cache-summary').textContent = `${bytes(state.diskBytes)} / ${bytes(state.limitBytes)} · ${number(state.fresh)} gültige, ${number(state.expired)} abgelaufene Kacheln · ${number(state.counters.hits)} lokale Treffer · ${number(state.counters['prefetch-attempts'])} Vorab-Anfragen insgesamt`;
+    $('disk-cache-summary').textContent = `${bytes(state.diskBytes)} / ${bytes(state.limitBytes)} · ${number(state.total)} Kacheln gespeichert · ${number(state.counters.hits)} lokale Treffer · ${number(state.counters['prefetch-attempts'])} Vorab-Anfragen insgesamt`;
     const job = state.job;
     $('disk-cache-progress').hidden = !job;
     if (job) {
-      $('disk-cache-progress').max = Math.max(1, job.planned); $('disk-cache-progress').value = job.fresh;
+      $('disk-cache-progress').max = Math.max(1, job.planned); $('disk-cache-progress').value = job.cached;
       const minutes = Math.ceil(job.estimatedSeconds / 60);
-      $('disk-cache-plan').textContent = `${number(job.fresh)} / ${number(job.planned)} Kacheln aktuell gültig${job.unavailable ? ` · ${number(job.unavailable)} vom Anbieter nicht verfügbar (404)` : ''} · Paket geschätzt ${bytes(job.estimatedBytes)} (${job.estimateBasedOnCache ? 'aus vorhandenen Kacheln' : 'teils angenommene Dateigrößen'}) · verbleibend mindestens ca. ${number(minutes)} Minuten, abhängig von Verbindung und Wartezeiten · übertragen ${bytes(job.transferred)} · ${number(job.attempts)} Vorab-Anfragen. ${job.message || ''}${job.retryAt > Date.now() ? ' Frühestes Fortsetzen: ' + new Date(job.retryAt).toLocaleTimeString('de-DE') + '.' : ''}`;
+      $('disk-cache-plan').textContent = `${number(job.cached)} / ${number(job.planned)} Kacheln bereits gespeichert${job.unavailable ? ` · ${number(job.unavailable)} vom Anbieter nicht verfügbar (404)` : ''} · Paket geschätzt ${bytes(job.estimatedBytes)} (${job.estimateBasedOnCache ? 'aus vorhandenen Kacheln' : 'teils angenommene Dateigrößen'}) · verbleibend mindestens ca. ${number(minutes)} Minuten, abhängig von Verbindung und Wartezeiten · übertragen ${bytes(job.transferred)} · ${number(job.attempts)} Vorab-Anfragen. ${job.message || ''}${job.retryAt > Date.now() ? ' Frühestes Fortsetzen: ' + new Date(job.retryAt).toLocaleTimeString('de-DE') + '.' : ''}`;
       if (!job.variantsReady) $('disk-cache-plan').textContent += ' Bitte zuerst Satellitenkarte und Gelände laden, danach neu planen.';
     }
     const fields = ['satellite', 'terrain', 'combined'].map(name => $('disk-quota-' + name).value.trim());
@@ -27,7 +27,7 @@ export function initDiskCache({ getToken }) {
     const running = job?.state === 'running';
     $('disk-cache-prepare').disabled = busy || running;
     $('disk-cache-start').disabled = busy || !job || running || !job.variantsReady || !sufficient || !$('disk-quota-verified').checked || Date.now() - verifiedAt > 15 * 60000 || job.retryAt > Date.now() || job.estimatedBytes > state.limitBytes;
-    $('disk-cache-start').textContent = job?.attempts ? 'Fortsetzen / abgelaufene Kacheln aktualisieren' : 'Vorabdownload starten';
+    $('disk-cache-start').textContent = job?.attempts ? 'Fortsetzen / fehlende Kacheln laden' : 'Vorabdownload starten';
     $('disk-cache-pause').disabled = busy || !running;
     $('disk-cache-clear').disabled = busy || running;
     $('disk-cache-budget').textContent = (!$('disk-quota-verified').checked || Date.now() - verifiedAt > 15 * 60000) ? 'Vorladen gesperrt: Kostenloses Restkontingent noch nicht aktuell bestätigt.' : !sufficient ? 'Vorladen gesperrt: Restkontingent unbekannt oder mit 20 % Reserve zu klein.' : 'Restkontingent bestätigt. Es werden höchstens die freigegebenen Anfragen gestartet; andere Kontonutzung muss pausiert bleiben.';

@@ -96,7 +96,9 @@ export class TileCache {
     try {
       const body = await readFile(this.blob(tile.key));
       if (body.length !== row.size || digest(body) !== row.sha) throw new Error('corrupt');
-      return { row, body, headers: JSON.parse(row.headers), fresh: row.expires > this.now() };
+      // Reuse saved imagery indefinitely. Expiry metadata is retained only as
+      // provenance; it no longer causes requests back to Mapbox.
+      return { row, body, headers: JSON.parse(row.headers), cached: true };
     } catch {
       this.transaction(() => {
         if (!this.db.prepare('SELECT 1 FROM inflight WHERE key=? AND until>?').get(tile.key, this.now())) {
@@ -114,7 +116,7 @@ export class TileCache {
       let used = this.db.prepare('SELECT coalesce(sum(size),0) AS n FROM tiles').get().n;
       const reserved = this.db.prepare('SELECT coalesce(sum(bytes),0) AS n FROM reservations').get().n;
       const overhead = metadata + 65536;
-      for (const row of this.db.prepare('SELECT key,size FROM tiles WHERE key NOT IN(SELECT key FROM inflight WHERE until>?) ORDER BY (expires>?),used').all(now, now)) {
+      for (const row of this.db.prepare('SELECT key,size FROM tiles WHERE key NOT IN(SELECT key FROM inflight WHERE until>?) ORDER BY used').all(now)) {
         if (used + reserved + bytes + overhead <= this.limitBytes) break;
         // Delete while holding the transaction, so other processes cannot reserve the same space.
         // Synchronous unlink is limited to one bounded image file at a time.
@@ -152,7 +154,7 @@ export class TileCache {
   async get(resource, token, { signal, priority = 0, referer, onAttempt } = {}) {
     const tile = parseTile(resource, token);
     const cached = await this.read(tile);
-    if (cached?.fresh) {
+    if (cached?.cached) {
       this.db.prepare('UPDATE tiles SET used=? WHERE key=?').run(this.now(), tile.key); this.count('hits');
       return { ...cached, cache: 'hit', fetched: cached.row.fetched, expires: cached.row.expires };
     }
@@ -182,12 +184,12 @@ export class TileCache {
           this.db.prepare('DELETE FROM inflight WHERE until < ?').run(this.now());
           return this.db.prepare('INSERT OR IGNORE INTO inflight VALUES(?,?,?)').run(tile.key, this.owner, this.now() + 60000).changes === 1;
         });
-        if (!ownsLease) { await sleep(50); const shared = await this.read(tile); if (shared?.fresh) { this.count('hits'); return { ...shared, cache: 'hit', fetched: shared.row.fetched, expires: shared.row.expires }; } }
+        if (!ownsLease) { await sleep(50); const shared = await this.read(tile); if (shared?.cached) { this.count('hits'); return { ...shared, cache: 'hit', fetched: shared.row.fetched, expires: shared.row.expires }; } }
       }
       heartbeat = setInterval(() => this.db.prepare('UPDATE inflight SET until=? WHERE key=? AND owner=?').run(this.now() + 60000, tile.key, this.owner), 10000);
       heartbeat.unref();
       const old = await this.read(tile);
-      if (old?.fresh) { this.count('hits'); return { ...old, cache: 'hit', fetched: old.row.fetched, expires: old.row.expires }; }
+      if (old?.cached) { this.count('hits'); return { ...old, cache: 'hit', fetched: old.row.fetched, expires: old.row.expires }; }
       release = await this.schedule(priority, signal);
       const headers = {};
       if (old?.headers.etag) headers['If-None-Match'] = old.headers.etag;
@@ -250,8 +252,8 @@ export class TileCache {
   }
   variant(namespace, source) { return this.db.prepare('SELECT variant,prefix FROM tiles WHERE namespace=? AND source=? ORDER BY fetched DESC LIMIT 1').get(namespace, source); }
   async status(namespace) {
-    const summary = this.db.prepare('SELECT count(*) AS total,coalesce(sum(size),0) AS bytes,coalesce(sum(expires>?),0) AS fresh FROM tiles').get(this.now());
-    return { ...summary, expired: summary.total - summary.fresh, diskBytes: summary.bytes + await this.indexSize(), limitBytes: this.limitBytes, counters: Object.fromEntries(this.db.prepare('SELECT * FROM counters').all().map(row => [row.key, row.value])), sources: this.db.prepare('SELECT source,avg(size) AS averageBytes FROM tiles WHERE namespace=? GROUP BY source').all(namespace) };
+    const summary = this.db.prepare('SELECT count(*) AS total,coalesce(sum(size),0) AS bytes FROM tiles').get();
+    return { ...summary, diskBytes: summary.bytes + await this.indexSize(), limitBytes: this.limitBytes, counters: Object.fromEntries(this.db.prepare('SELECT * FROM counters').all().map(row => [row.key, row.value])), sources: this.db.prepare('SELECT source,avg(size) AS averageBytes FROM tiles WHERE namespace=? GROUP BY source').all(namespace) };
   }
   async clear() {
     if (this.pending.size || this.db.prepare('SELECT count(*) AS n FROM inflight WHERE until>?').get(this.now()).n) throw failure(409, 'Kartenanfragen laufen noch. Bitte kurz warten und erneut versuchen.');
