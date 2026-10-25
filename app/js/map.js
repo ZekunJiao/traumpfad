@@ -4,6 +4,7 @@ import { createMapRequestGate } from './tile-request-gate.js';
 import { interpolateCamera } from './camera-transition.js';
 import { scenicPoint, scenicHeading, easeHeading } from './camera-follow.js';
 import { overnightPlaces } from './overnight-places.js';
+import { mountainRegions, borderCrossings } from './route-landmarks.js';
 
 const SVG = 'http://www.w3.org/2000/svg';
 export const routePosition = (route, progress) => ({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: pointAt(route, progress) } });
@@ -18,7 +19,7 @@ export class JourneyMap {
   constructor({ stages, routes, onStop, onStatus, createStopPreview, onExplore = () => {}, onPitch = () => {}, onBearing = () => {}, onHeight = () => {}, onHeading = () => {} }) {
     Object.assign(this, { stages, routes, onStop, onStatus, createStopPreview, onExplore, onPitch, onBearing, onHeight, onHeading });
     this.viewPitch = null; this.viewBearing = 0; this.viewDistance = 1; this.heightOffset = 0;
-    this.map = null; this.ready = false; this.stageIndex = 0; this.progress = 0; this.markers = []; this.exploring = false;
+    this.map = null; this.ready = false; this.stageIndex = 0; this.progress = 0; this.markers = []; this.landmarkMarkers = []; this.exploring = false;
     this.container = document.getElementById('schematic');
     this.buildSchematic();
     this.resizeObserver = new ResizeObserver(() => this.buildSchematic());
@@ -81,6 +82,7 @@ export class JourneyMap {
     clearTimeout(this.loadTimer);
     this.markers.forEach(m => m.remove()); this.markers = [];
     this.overnightMarkers?.forEach(m => m.remove()); this.overnightMarkers = [];
+    this.landmarkMarkers.forEach(({ marker }) => marker.remove()); this.landmarkMarkers = [];
     this.map?.remove(); this.map = null; this.ready = false; this.lastLoadError = null; this.waitingForTerrain = false; this.appliedExplore = null; this.container.hidden = false;
     if (!token) { this.onStatus('schematic'); return; }
     if (!window.mapboxgl?.supported()) { this.onStatus('error', '3D-Karten werden von diesem Browser nicht unterstützt. Die Vorschau und Galerien bleiben verfügbar.'); return; }
@@ -88,7 +90,7 @@ export class JourneyMap {
     try {
       // Keep satellite/DEM bursts small during camera moves on this local presentation.
       window.mapboxgl.maxParallelImageRequests = 4;
-      const map = new window.mapboxgl.Map({ container: 'map', accessToken: token, style: 'mapbox://styles/mapbox/standard-satellite', center: [11.48, 47.7], zoom: 8, pitch: 55, minPitch: 0, maxPitch: 85, pitchWithRotate: true, bearing: 0, antialias: true, attributionControl: true, minTileCacheSize: 64, maxTileCacheSize: 256, transformRequest: createMapRequestGate() });
+      const map = new window.mapboxgl.Map({ container: 'map', accessToken: token, style: 'mapbox://styles/mapbox/standard-satellite', center: [11.48, 47.7], zoom: 8, pitch: 55, minPitch: 0, maxPitch: 85, pitchWithRotate: true, bearing: 0, antialias: true, attributionControl: true, minTileCacheSize: 64, maxTileCacheSize: 1024, transformRequest: createMapRequestGate() });
       this.map = map;
       map.on('style.load', () => {
         if (map !== this.map) return;
@@ -99,6 +101,7 @@ export class JourneyMap {
       map.on('move', () => {
         if (map === this.map) this.onHeading(map.getBearing());
       });
+      map.on('zoom', () => { if (map === this.map) this.updateLandmarkAltitudes(); });
       map.on('movestart', event => {
         if (map === this.map) this.handleUserNavigation(event);
       });
@@ -128,6 +131,11 @@ export class JourneyMap {
             label.title = description; label.setAttribute('aria-label', description); label.append(dot, name);
             return new window.mapboxgl.Marker({ element: label, anchor: 'left' }).setLngLat(place.coordinates).addTo(map);
           });
+          this.landmarkMarkers = [
+            ...mountainRegions.map(region => this.createLandmarkMarker(region, 'region', map)),
+            ...borderCrossings.map(crossing => this.createLandmarkMarker(crossing, 'border', map))
+          ];
+          this.updateLandmarkAltitudes();
           const pendingStop = this.pendingStopProgress;
           this.ready = true; this.container.hidden = true; this.onStatus('ready'); this.setStage(this.stageIndex); this.setExplore(this.exploring);
           if (Number.isFinite(pendingStop)) this.focusStop(pendingStop);
@@ -159,8 +167,49 @@ export class JourneyMap {
     this.map = null; this.ready = false; this.waitingForTerrain = false; this.appliedExplore = null;
     this.markers.forEach(marker => marker.remove()); this.markers = [];
     this.overnightMarkers?.forEach(marker => marker.remove()); this.overnightMarkers = [];
+    this.landmarkMarkers.forEach(({ marker }) => marker.remove()); this.landmarkMarkers = [];
     failedMap?.remove();
     this.container.hidden = false; this.onStatus('error', message);
+  }
+  createLandmarkMarker(place, kind, map) {
+    const element = document.createElement('div');
+    element.className = `map-landmark map-landmark-${kind}`;
+    element.setAttribute('aria-label', kind === 'region'
+      ? `${place.name}${place.subtitle ? ` · ${place.subtitle}` : ''}`
+      : `Staatsgrenze ${place.from} nach ${place.to} · ${place.place}${place.approximate ? ' · ungefährer Punkt am Referenztrack' : ''}`);
+    element.title = element.getAttribute('aria-label');
+    element.style.setProperty('--landmark-float', kind === 'region' ? '76px' : '48px');
+    const stem = document.createElement('span'); stem.className = 'map-landmark-stem';
+    const label = document.createElement('span'); label.className = 'map-landmark-label';
+    if (kind === 'region') {
+      const symbol = document.createElement('span'); symbol.className = 'map-landmark-symbol'; symbol.textContent = '▲';
+      const copy = document.createElement('span'); copy.className = 'map-landmark-copy';
+      const name = document.createElement('strong'); name.textContent = place.name; copy.append(name);
+      if (place.subtitle) { const subtitle = document.createElement('small'); subtitle.textContent = place.subtitle; copy.append(subtitle); }
+      label.append(symbol, copy);
+    } else {
+      const copy = document.createElement('span'); copy.className = 'map-landmark-copy';
+      const heading = document.createElement('strong'); heading.className = 'map-landmark-border-title';
+      heading.textContent = `${place.from} → ${place.to}${place.approximate ? ' · ca.' : ''}`;
+      const subtitle = document.createElement('small'); subtitle.textContent = place.place;
+      copy.append(heading, subtitle); label.append(copy);
+      const pin = document.createElement('span'); pin.className = 'map-landmark-border-pin'; pin.textContent = '↕'; label.append(pin);
+    }
+    element.append(stem, label);
+    const marker = new window.mapboxgl.Marker({ element, anchor: 'center', pitchAlignment: 'viewport', rotationAlignment: 'viewport' })
+      .setLngLat(place.coordinates)
+      .addTo(map);
+    marker.getElement().style.zIndex = kind === 'border' ? '7' : '6';
+    return { marker, place };
+  }
+  updateLandmarkAltitudes() {
+    if (!this.map || !this.landmarkMarkers.length) return;
+    const zoom = this.map.getZoom();
+    for (const { marker, place } of this.landmarkMarkers) {
+      // Keep labels hovering at a legible screen height as the camera zooms.
+      const metersPerPixel = 40075016.686 * Math.cos(place.coordinates[1] * Math.PI / 180) / (512 * 2 ** zoom);
+      marker.setAltitude(Math.max(.5, Math.min(25000, metersPerPixel * 26)));
+    }
   }
   setStage(index) {
     this.photoCamera = null;
