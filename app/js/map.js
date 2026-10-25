@@ -3,8 +3,10 @@ import { describeMapError } from './map-error.js';
 import { createTileRequestGate } from './tile-request-gate.js';
 import { interpolateCamera } from './camera-transition.js';
 import { scenicPoint, scenicHeading, easeHeading } from './camera-follow.js';
+import { overnightPlaces } from './overnight-places.js';
 
 const SVG = 'http://www.w3.org/2000/svg';
+export const routePosition = (route, progress) => ({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: pointAt(route, progress) } });
 function svgNode(tag, attributes, text) {
   const node = document.createElementNS(SVG, tag);
   for (const [key, value] of Object.entries(attributes || {})) node.setAttribute(key, value);
@@ -13,8 +15,8 @@ function svgNode(tag, attributes, text) {
 }
 
 export class JourneyMap {
-  constructor({ stages, routes, onStop, onStatus, onExplore = () => {}, onPitch = () => {}, onBearing = () => {}, onHeight = () => {} }) {
-    Object.assign(this, { stages, routes, onStop, onStatus, onExplore, onPitch, onBearing, onHeight });
+  constructor({ stages, routes, onStop, onStatus, onExplore = () => {}, onPitch = () => {}, onBearing = () => {}, onHeight = () => {}, onHeading = () => {} }) {
+    Object.assign(this, { stages, routes, onStop, onStatus, onExplore, onPitch, onBearing, onHeight, onHeading });
     this.viewPitch = null; this.viewBearing = 0; this.viewDistance = 1; this.heightOffset = 0;
     this.map = null; this.ready = false; this.stageIndex = 0; this.progress = 0; this.markers = []; this.exploring = false;
     this.container = document.getElementById('schematic');
@@ -53,12 +55,12 @@ export class JourneyMap {
     svg.append(svgNode('circle', { cx: end[0], cy: end[1], r: 4, fill: '#dcdcc0' }));
     svg.append(svgNode('text', { x: end[0] + 12, y: end[1] + 4, class: 'schema-label' }, this.stages[finalIndex].end));
     this.schemaTravelled = svgNode('path', { fill: 'none', stroke: '#e8c183', 'stroke-width': '3.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
-    this.schemaDot = svgNode('circle', { r: 6, fill: '#f2d89b', stroke: '#314b3a', 'stroke-width': 3 });
+    this.schemaDot = svgNode('circle', { r: 6, fill: '#ffffff', stroke: '#314b3a', 'stroke-width': 2 });
     svg.append(this.schemaTravelled, this.schemaDot);
     this.container.append(svg); this.updateSchema();
   }
   updateSchema() {
-    this.schemaPaths.forEach((path, i) => path.setAttribute('opacity', i === this.stageIndex ? '.7' : '.2'));
+    this.schemaPaths.forEach((path, i) => { path.setAttribute('opacity', i === this.stageIndex ? '1' : '.2'); path.setAttribute('stroke', '#ef5350'); });
     const route = this.routes[this.stageIndex], p = this.project(pointAt(route, this.progress));
     this.schemaTravelled.setAttribute('d', this.schemaLine(sliceRoute(route, this.progress)));
     this.schemaDot.setAttribute('cx', p[0]); this.schemaDot.setAttribute('cy', p[1]);
@@ -67,6 +69,7 @@ export class JourneyMap {
     this.cancelCameraMotion();
     clearTimeout(this.loadTimer);
     this.markers.forEach(m => m.remove()); this.markers = [];
+    this.overnightMarkers?.forEach(m => m.remove()); this.overnightMarkers = [];
     this.map?.remove(); this.map = null; this.ready = false; this.lastLoadError = null; this.waitingForTerrain = false; this.appliedExplore = null; this.container.hidden = false;
     if (!token) { this.onStatus('schematic'); return; }
     if (!window.mapboxgl?.supported()) { this.onStatus('error', '3D-Karten werden von diesem Browser nicht unterstützt. Die Vorschau und Galerien bleiben verfügbar.'); return; }
@@ -76,8 +79,15 @@ export class JourneyMap {
       window.mapboxgl.maxParallelImageRequests = 4;
       const map = new window.mapboxgl.Map({ container: 'map', accessToken: token, style: 'mapbox://styles/mapbox/standard-satellite', center: [11.48, 47.7], zoom: 8, pitch: 55, minPitch: 0, maxPitch: 85, pitchWithRotate: true, bearing: 0, antialias: true, attributionControl: true, minTileCacheSize: 64, maxTileCacheSize: 256, transformRequest: createTileRequestGate() });
       this.map = map;
+      map.on('style.load', () => {
+        if (map !== this.map) return;
+        for (const [key, value] of Object.entries({ showPlaceLabels: true, showPointOfInterestLabels: false, showRoadLabels: false, showTransitLabels: false })) map.setConfigProperty('basemap', key, value);
+      });
       this.bindLookControls(map);
       this.bindZoomControls(map);
+      map.on('move', () => {
+        if (map === this.map) this.onHeading(map.getBearing());
+      });
       map.on('movestart', event => {
         if (map === this.map) this.handleUserNavigation(event);
       });
@@ -94,9 +104,19 @@ export class JourneyMap {
           map.addSource('journey-all', { type: 'geojson', data: { type: 'FeatureCollection', features: this.routes.map(r => feature(r.points)) } });
           map.addLayer({ id: 'journey-all', type: 'line', slot: 'middle', source: 'journey-all', paint: { 'line-color': '#fff4d4', 'line-width': 3, 'line-opacity': .4 }, layout: { 'line-join': 'round', 'line-cap': 'round' } });
           map.addSource('journey-active', { type: 'geojson', data: feature(this.routes[this.stageIndex].points) });
-          map.addLayer({ id: 'journey-active', type: 'line', slot: 'middle', source: 'journey-active', paint: { 'line-color': '#f2c578', 'line-width': 4, 'line-opacity': .45 }, layout: { 'line-join': 'round', 'line-cap': 'round' } });
+          map.addLayer({ id: 'journey-active', type: 'line', slot: 'middle', source: 'journey-active', paint: { 'line-color': '#ef5350', 'line-width': 4, 'line-opacity': 1 }, layout: { 'line-join': 'round', 'line-cap': 'round' } });
           map.addSource('journey-travelled', { type: 'geojson', data: feature(sliceRoute(this.routes[this.stageIndex], this.progress)) });
           map.addLayer({ id: 'journey-travelled', type: 'line', slot: 'middle', source: 'journey-travelled', paint: { 'line-color': '#ffd990', 'line-width': 5 }, layout: { 'line-join': 'round', 'line-cap': 'round' } });
+          map.addSource('journey-position', { type: 'geojson', data: routePosition(this.routes[this.stageIndex], this.progress) });
+          map.addLayer({ id: 'journey-position', type: 'circle', slot: 'middle', source: 'journey-position', paint: { 'circle-radius': 6, 'circle-color': '#ffffff', 'circle-stroke-color': '#183d35', 'circle-stroke-width': 2 } });
+          this.overnightMarkers = overnightPlaces(this.stages, this.routes).map(place => {
+            const label = document.createElement('div'); label.className = 'overnight-place';
+            const dot = document.createElement('span'); dot.className = 'overnight-dot'; dot.textContent = String(place.day);
+            const name = document.createElement('span'); name.className = 'overnight-name'; name.textContent = place.name;
+            const description = `${place.confirmed ? 'Übernachtung' : 'Etappenziel'} ${place.day}: ${place.name}${place.confirmed ? '' : ' · Übernachtung noch abzugleichen'}`;
+            label.title = description; label.setAttribute('aria-label', description); label.append(dot, name);
+            return new window.mapboxgl.Marker({ element: label, anchor: 'left' }).setLngLat(place.coordinates).addTo(map);
+          });
           const pendingStop = this.pendingStopProgress;
           this.ready = true; this.container.hidden = true; this.onStatus('ready'); this.setStage(this.stageIndex); this.setExplore(this.exploring);
           if (Number.isFinite(pendingStop)) this.focusStop(pendingStop);
@@ -127,6 +147,7 @@ export class JourneyMap {
     // Detach first: errors from requests already in flight must not replace the root cause.
     this.map = null; this.ready = false; this.waitingForTerrain = false; this.appliedExplore = null;
     this.markers.forEach(marker => marker.remove()); this.markers = [];
+    this.overnightMarkers?.forEach(marker => marker.remove()); this.overnightMarkers = [];
     failedMap?.remove();
     this.container.hidden = false; this.onStatus('error', message);
   }
@@ -306,17 +327,29 @@ export class JourneyMap {
   }
   raiseBy(vertical) { this.setHeight((this.heightOffset || 0) - vertical * 12); }
   lookBy(horizontal, vertical) {
-    if (!this.ready || !this.map || this.exploring) return;
+    if (!this.ready || !this.map) return;
+    if (this.exploring) {
+      const camera = this.map.getFreeCameraOptions();
+      const pitch = clamp(this.map.getPitch() - vertical * .25, 0, 85);
+      const heading = this.map.getBearing() + horizontal * .25;
+      // Rotate at the observer's position, rather than orbiting Mapbox's ground centre.
+      camera.setPitchBearing(pitch, heading);
+      this.map.setFreeCameraOptions(camera);
+      this.viewPitch = pitch;
+      this.viewBearing = ((heading - (this.followHeading ?? this.routeHeading()) + 540) % 360 + 360) % 360 - 180;
+      return;
+    }
     this.viewPitch = clamp((this.viewPitch ?? this.map.getPitch()) - vertical * .25, 0, 85);
     this.setBearing((this.viewBearing || 0) + horizontal * .25);
   }
   bindLookControls(map) {
     const surface = map.getCanvasContainer();
     let pointer;
-    const canLook = event => map === this.map && this.ready && ((event.shiftKey && [0, 2].includes(event.button)) || (event.button === 0 && !event.ctrlKey) || (!this.exploring && (event.button === 2 || (event.button === 0 && event.ctrlKey))));
+    const canLook = event => map === this.map && this.ready && [0, 2].includes(event.button);
     surface.addEventListener('pointerdown', event => {
       if (!canLook(event)) return;
       pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, pan: event.button === 0 && !event.ctrlKey && !event.shiftKey, height: event.shiftKey, started: false };
+      this.lookingWithRightButton = event.button === 2;
       surface.setPointerCapture(event.pointerId);
       event.preventDefault(); event.stopImmediatePropagation();
     }, true);
@@ -326,13 +359,14 @@ export class JourneyMap {
       pointer.started = true;
       if (pointer.height || event.shiftKey) this.raiseBy(event.clientY - pointer.y);
       else if (pointer.pan) this.panBy(event.clientX - pointer.x, event.clientY - pointer.y);
-      else this.lookBy(event.clientX - pointer.x, event.clientY - pointer.y);
+      else this.lookBy(pointer.x - event.clientX, pointer.y - event.clientY);
       pointer.x = event.clientX; pointer.y = event.clientY;
       event.preventDefault(); event.stopImmediatePropagation();
     }, true);
     for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) surface.addEventListener(type, event => {
       if (!pointer || pointer.id !== event.pointerId) return;
       pointer = null;
+      this.lookingWithRightButton = false;
       if (surface.hasPointerCapture(event.pointerId)) surface.releasePointerCapture(event.pointerId);
       event.stopImmediatePropagation();
     }, true);
@@ -340,7 +374,7 @@ export class JourneyMap {
       if (canLook(event)) { event.preventDefault(); event.stopImmediatePropagation(); }
     }, true);
     surface.addEventListener('contextmenu', event => {
-      if (map === this.map && !this.exploring) { event.preventDefault(); event.stopImmediatePropagation(); }
+      if (map === this.map && this.ready) { event.preventDefault(); event.stopImmediatePropagation(); }
     }, true);
   }
   panBy(x, y) {
@@ -354,24 +388,44 @@ export class JourneyMap {
     const meters = Math.min(distance(a, b) * .25, Math.hypot(x, y) * 50);
     this.map.setCenter(destination([current.lng, current.lat], meters, bearing(a, b)));
   }
-  zoomBy(steps) {
+  zoomBy(steps, around) {
     if (!this.ready || !this.map || !Number.isFinite(steps) || this.exploring) return;
-    this.viewDistance = clamp((this.viewDistance ?? 1) * Math.pow(2, -steps), .3, 4);
+    const previous = this.viewDistance ?? 1;
+    this.viewDistance = clamp(previous * Math.pow(2, -steps), .3, 4);
+    if (around && [around.lng, around.lat].every(Number.isFinite) && this.viewDistance !== previous) {
+      const map = this.map, before = map.getCenter(), requested = this.followRequested;
+      // Let Mapbox preserve the screen position of the picked terrain point.
+      this.cancelCameraMotion();
+      map.zoomTo(map.getZoom() + Math.log2(previous / this.viewDistance), { around, duration: 0 });
+      const after = map.getCenter(), camera = map.getFreeCameraOptions(), position = camera.position;
+      const offset = this.viewOffset ?? [0, 0];
+      this.viewOffset = [offset[0] + after.lng - before.lng, offset[1] + after.lat - before.lat];
+      const location = position.toLngLat();
+      this.cameraPosition = [location.lng, location.lat]; this.cameraAltitude = position.toAltitude();
+      this.cameraTarget = [after.lng, after.lat];
+      this.following = true; this.routeFramed = true; this.followRequested = requested;
+      return;
+    }
     if (!this.entry && !this.nativeMotion) this.setProgress(this.progress, true, .1);
   }
   bindZoomControls(map) {
     const surface = map.getCanvasContainer();
     const active = () => map === this.map && this.ready && !this.exploring;
+    const cursorPoint = event => {
+      if (this.lookingWithRightButton || !Number.isFinite(event.clientX) || !Number.isFinite(event.clientY)) return;
+      const rect = surface.getBoundingClientRect();
+      return map.unproject([event.clientX - rect.left, event.clientY - rect.top]);
+    };
     const consume = event => { event.preventDefault(); event.stopImmediatePropagation(); };
     surface.addEventListener('wheel', event => {
       if (!active()) return;
       consume(event);
       const pixels = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? surface.clientHeight : 1);
-      this.zoomBy(clamp(-pixels / 500, -1, 1));
+      this.zoomBy(clamp(-pixels / 500, -1, 1), cursorPoint(event));
     }, { capture: true, passive: false });
     surface.addEventListener('dblclick', event => {
       if (!active()) return;
-      consume(event); this.zoomBy(event.shiftKey ? -.5 : .5);
+      consume(event); this.zoomBy(event.shiftKey ? -.5 : .5, cursorPoint(event));
     }, true);
     map.getContainer().addEventListener('click', event => {
       const button = event.target.closest?.('.mapboxgl-ctrl-zoom-in,.mapboxgl-ctrl-zoom-out');
@@ -402,6 +456,7 @@ export class JourneyMap {
     if (!this.ready) return;
     const route = this.routes[this.stageIndex];
     this.map.getSource('journey-travelled').setData(feature(sliceRoute(route, progress)));
+    this.map.getSource('journey-position').setData(routePosition(route, progress));
     if (!follow || this.exploring) return;
     this.followRequested = true;
     if (this.nativeMotion || this.entry) return;

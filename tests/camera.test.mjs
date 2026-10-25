@@ -236,7 +236,7 @@ test('pausing and resuming preserve a chosen direction, while explore still perm
   assert.equal(player.state.mode, 'explore');
 });
 
-test('right-button pointer gestures adjust the view without activating native pan or pausing playback', () => {
+test('right-button dragging inverts both viewing axes without panning or pausing', () => {
   const { view, player, stats } = manualNavigationFixture();
   const listeners = new Map(); let captured;
   const surface = {
@@ -251,15 +251,15 @@ test('right-button pointer gestures adjust the view without activating native pa
   const down = event(); listeners.get('pointerdown')(down);
   assert.equal(down.stopped, true); assert.equal(captured, 1);
   listeners.get('pointermove')(event({ clientX: 140, clientY: 80 }));
-  assert.equal(view.viewBearing, 10);
-  assert.equal(stats().angles.pitch, 60);
+  assert.equal(view.viewBearing, -10);
+  assert.equal(stats().angles.pitch, 50);
   assert.equal(player.state.status, 'playing');
   player.tick(.5);
   assert.equal(player.state.progress, .05);
   listeners.get('pointerup')(event());
   assert.equal(captured, null);
   listeners.get('pointermove')(event({ clientX: 200 }));
-  assert.equal(view.viewBearing, 10);
+  assert.equal(view.viewBearing, -10);
   const left = event({ button: 0 }); listeners.get('pointerdown')(left);
   assert.equal(left.stopped, true);
 });
@@ -435,4 +435,49 @@ test('Shift and left-drag change height without box zoom, looking around, or pau
   assert.equal(player.state.progress, .05);
   listeners.get('pointerup')(event());
   assert.equal(captured, null);
+});
+
+test('looking around while paused in explore rotates at the observer without moving its position', () => {
+  const { view, player, stats } = manualNavigationFixture();
+  player.play(); view.advanceCamera(view.entry.startedAt + view.entry.duration);
+  player.setMode('explore');
+  const position = { ...stats().pose.position }, progress = player.state.progress;
+  view.map.getBearing = () => 30;
+  view.map.setBearing = () => assert.fail('native bearing would orbit the ground centre');
+  view.map.setPitch = () => assert.fail('native pitch would orbit the ground centre');
+  view.lookBy(40, -20);
+  assert.deepEqual(stats().pose.position, position);
+  assert.equal(stats().angles.bearing, 40);
+  assert.equal(stats().angles.pitch, 60);
+  assert.equal(player.state.status, 'paused');
+  assert.equal(player.state.progress, progress);
+});
+
+test('wheel zoom uses the cursor terrain point and preserves ongoing playback', () => {
+  const { view, player } = manualNavigationFixture();
+  player.play(); view.advanceCamera(view.entry.startedAt + view.entry.duration);
+  let center = { lng: 11, lat: 47 }, request;
+  view.map.getCenter = () => center;
+  view.map.getZoom = () => 12;
+  view.map.zoomTo = (zoom, options) => { request = { zoom, options }; center = { lng: 11.01, lat: 47.005 }; };
+  const cameraOptions = view.map.getFreeCameraOptions;
+  view.map.getFreeCameraOptions = () => {
+    const camera = cameraOptions();
+    camera.position.toLngLat = () => ({ lng: 11.008, lat: 47.004 });
+    camera.position.toAltitude = () => 2200;
+    return camera;
+  };
+  const target = { lng: 11.02, lat: 47.01 };
+  view.zoomBy(.5, target);
+  assert.equal(request.zoom, 12.5);
+  assert.deepEqual(request.options.around, target);
+  assert.equal(request.options.duration, 0);
+  assert.ok(Math.abs(view.viewOffset[0] - .01) < 1e-10);
+  assert.deepEqual(view.cameraPosition, [11.008,47.004]);
+  assert.equal(view.cameraAltitude, 2200);
+  assert.equal(view.nativeMotion, null);
+  player.tick(.5);
+  assert.equal(player.state.status, 'playing');
+  assert.equal(player.state.mode, 'presentation');
+  assert.equal(player.state.progress, .05);
 });

@@ -215,6 +215,7 @@ function mapStatus(status, message) {
   const titles = { schematic: 'Schematische Vorschau', loading: 'Satellitenkarte wird geladen …', ready: 'Satellit · 3D-Gelände', error: 'Lokale Vorschau · Karte nicht verfügbar' };
   const span = element('span', 'status-dot'); $('map-status').replaceChildren(span, document.createTextNode(titles[status]));
   $('connect-button').hidden = status === 'ready';
+  $('camera-compass').hidden = status !== 'ready';
   if (status === 'error' && message) text('token-message', message);
   else if (status === 'ready' || status === 'schematic') text('token-message', '');
   if (message) notify(message);
@@ -254,7 +255,14 @@ async function init() {
   routes = routeResults;
   collage = new PhotoCollage({ loadPhoto: loadCollagePhoto, onChange: renderCollage, pageSize: collagePageSize() });
   new ResizeObserver(() => { collage.setPageSize(collagePageSize()); layoutCollage(); }).observe($('main'));
-  map = new JourneyMap({ stages: journey.stages, routes, onStop: stop => player.openStop(stop, { manual: true }), onStatus: mapStatus, onExplore: () => {
+  map = new JourneyMap({ stages: journey.stages, routes, onStop: stop => player.openStop(stop, { manual: true }), onStatus: mapStatus, onHeading: bearing => {
+    if (!Number.isFinite(bearing)) return;
+    const degrees = ((bearing % 360) + 360) % 360;
+    const direction = ['N', 'NO', 'O', 'SO', 'S', 'SW', 'W', 'NW'][Math.round(degrees / 45) % 8];
+    text('compass-heading', `${direction} · ${Math.round(degrees) % 360}°`);
+    $('camera-compass').style.setProperty('--compass-bearing', `${degrees}deg`);
+    $('camera-compass').setAttribute('aria-label', `Kamerarichtung ${direction}, ${Math.round(degrees) % 360} Grad`);
+  }, onExplore: () => {
     player.setMode('explore');
     announce('Frei erkunden. Der Flug pausiert. Mit Präsentieren zur geführten Kamera zurückkehren.');
   } });
