@@ -4,7 +4,7 @@ Eine lokale Reisepräsentation für deinen Mac: 3D-Satellitenkarte, geführter F
 
 ## Starten
 
-Voraussetzung: macOS und Node.js ab Version 22. Die Abhängigkeiten sind im Projekt bereits installiert. Für eine neue Installation einmal `npm install` ausführen.
+Voraussetzung: macOS und Node.js ab Version 24. Die Abhängigkeiten sind im Projekt bereits installiert. Für eine neue Installation einmal `npm install` ausführen.
 
 ```sh
 cd /Users/zek/Documents/ChatGPT/Traumpfad
@@ -21,7 +21,7 @@ Bei Verbindungsproblemen in den Einstellungen **Schlüssel direkt bei Mapbox pr�
 
 Unter `http://localhost:5173/?diagnose=1` startet die App ohne automatische Kachelladung. Dort kann der gespeicherte Schlüssel mit einzelnen Ressourcenanfragen geprüft werden. Wenn eine Karte in der aktuellen Sitzung bereits fehlgeschlagen ist, prüft der Knopf stattdessen die betroffene Satellitenkachel direkt und mit der ursprünglichen Karten-Sitzung. Vom Browser zugängliche Antwortheader zu Wartezeit, Anfragegrenze und Anfragekennung werden mit angezeigt.
 
-Die Karte lädt maximal vier Bilder gleichzeitig und startet noch nicht gültig im nativen Browsercache vorhandene Mapbox-Kachelanfragen mit mindestens 150 ms Abstand. Bereits gespeicherte, gültige Kacheln passieren diese Warteschlange sofort. Abgebrochene Anfragen verlassen die Warteschlange. Schlüssel und Mapbox-Sitzungsparameter werden unverändert an das Mapbox-SDK übergeben; es verwaltet Abruf, Wiederverwendung und Ablaufzeiten selbst.
+Satelliten- und DEM-Kacheln laufen über den lokalen Festplattencache. Gültige Treffer benötigen keine Mapbox-Anfrage. Für fehlende oder abgelaufene Bilder koordiniert der Server auch zwischen Worktrees höchstens zwei gleichzeitige Mapbox-Anfragen mit mindestens 150 ms Startabstand. Sichtbare Kartenanfragen haben Vorrang vor Vorabdownloads. Echte SDK-Sitzungsparameter werden upstream erhalten; der Schlüssel wird nur in einem lokalen Anfrageheader übergeben. Andere Kartenressourcen und Dienste verwenden weiterhin Mapbox direkt.
 
 ### Browsercache ausprobieren
 
@@ -29,7 +29,23 @@ Mapbox GL JS verwendet bereits seinen eigenen persistenten Browsercache `mapbox-
 
 Eine Etappe laden und abspielen, dann eine andere Etappe wählen und zur ersten zurückkehren. Auch nach einem Neuladen der App können gültige Einträge wiederverwendet werden. Immer denselben Browser und `http://localhost:5173` verwenden; andere Browserprofile und Ports haben eigene Speicherbereiche. Private Fenster und das Löschen der Browserdaten können die Speicherung verhindern oder entfernen.
 
-Die zusätzlichen Kacheln im Arbeitsspeicher werden auf 64 bis 256 Einträge pro Quelle begrenzt. Der persistente Cache bleibt der native Mapbox-Cache mit dessen eigener Größenverwaltung und Ablaufprüfung; die App erweitert seine Speicherdauer nicht. Er ist keine vollständige Offline-Sicherung aller Etappen. Ein Backend-Cache oder ein zusätzlicher Service Worker wird nicht verwendet.
+Die zusätzlichen Kacheln im Arbeitsspeicher werden auf 64 bis 256 Einträge pro Quelle begrenzt. Der persistente Cache bleibt der native Mapbox-Cache mit dessen eigener Größenverwaltung und Ablaufprüfung; die App erweitert seine Speicherdauer nicht. Er ist keine vollständige Offline-Sicherung aller Etappen. Satellitenbilder und Höhendaten verwenden zusätzlich den nachfolgend beschriebenen Festplattencache. Ein Service Worker wird nicht verwendet. Die Browsercache-Anzeige erfasst diesen separaten Festplattenspeicher nicht.
+
+### Karten auf diesem Mac speichern
+
+Unter **⚙ → Karten auf diesem Mac speichern** werden Belegung, gültige/abgelaufene Kacheln und lokale Treffer angezeigt. Der zusätzliche Cache liegt bei diesem Projekt unter `/Users/zek/Documents/ChatGPT/Traumpfad/.cache/map-tiles/`; Worktrees ermitteln denselben Ordner über das gemeinsame Git-Verzeichnis. Für andere Installationen wird entsprechend das Hauptprojekt verwendet. `TRAUMPFAD_TILE_CACHE_DIR` kann einen anderen Ordner vorgeben. Bilddateien und SQLite-Index bleiben außerhalb von Git. Node 24 wird für `node:sqlite` benötigt.
+
+**Route vorbereiten: Umfang berechnen** erzeugt zunächst nur einen Plan aus der vollständigen GPX-Datei: 20 km auf jeder Routenseite, Zoom 0–14, überlappende Gebiete dedupliziert. Um Lücken zwischen GPX-Punkten zu vermeiden, enthält die geometrische Abdeckung einen konservativen Rand von etwa 500 Metern. Aktuell ergeben sich 8.507 Kachelkoordinaten je Quelle, insgesamt 17.014 Bilder. Die Schätzung setzt die Bildvarianten voraus, die beim normalen Laden der Satellitenkarte tatsächlich beobachtet wurden. Deshalb zuerst Satellitenkarte und Gelände öffnen. Für die Planung werden keine Kartenbilder von Mapbox angefordert.
+
+Der Vorabdownload bleibt ohne bestätigte kostenlose Restkontingente gesperrt. In den aufklappbaren Einstellungen sind die im Mapbox-Konto gerade geprüften Restkontingente für Satellitenbilder, Gelände und beide zusammen einzutragen. Bei geteilten API-Kontingenten darf die Gesamtmenge nicht doppelt gezählt werden. Die App kann diese Kontostände nicht selbst auslesen. 20 % bleiben als Reserve frei; andere Apps/Geräte müssen das Konto während des Downloads nicht zusätzlich nutzen. Jede tatsächlich gestartete Vorab-Anfrage, einschließlich Fehlern und Revalidierungen, verbraucht eine Budgeteinheit. Echte Kostenfreiheit setzt korrekte aktuelle Kontowerte voraus; die App kann fremde Kontonutzung nicht verhindern.
+
+Direkte Raster-Vorabdownloads sind nicht mit dem Freikontingent von 50.000 GL-JS-Kartenstarts gleichzusetzen. Sie erhalten keine erfundenen SDK-Sitzungsparameter. Siehe [Mapbox Raster Tiles API](https://docs.mapbox.com/api/maps/raster-tiles/).
+
+**Pausieren**, **Fortsetzen / abgelaufene Kacheln aktualisieren**, **Aktualität prüfen** und **Festplattencache leeren** steuern den Speicher. Die Aktualitätsprüfung liest nur lokale Metadaten. Ein Neustart setzt keinen Download automatisch fort; vor dem Fortsetzen sind die Restkontingente erneut zu bestätigen. HTTP 429 pausiert bis zum Ende der angegebenen Wartezeit, 401/403 stoppen mit einem Hinweis. Einträge ohne Anbieterabdeckung (404, etwa DEM über Wasser) werden als nicht verfügbar ausgewiesen, niemals als gültiges Kartenbild gespeichert; eine neue Planung prüft diese erneut.
+
+Das Limit beträgt 20 GB einschließlich Index und reserviertem Platz für temporäre Bilddateien. Abgelaufene Einträge werden zuerst, danach die am längsten ungenutzten entfernt. Ist kein Platz verfügbar, kann die sichtbare Karte online weiterladen, ohne diese Bilder zu speichern; Vorabdownloads pausieren. HTTP-Cachevorgaben und Alter der Antworten werden beachtet. Fehlerantworten, ungültige Bilddaten und `no-store` werden nicht als Bilder gespeichert. Ablauf bedeutet erneute Prüfung bei Mapbox, keine künstliche Verlängerung. Die standardmäßig zwölf Stunden für Rasterbilder garantieren daher keine Gültigkeit am nächsten Tag: vor der Präsentation erneut prüfen und nötigenfalls kostenbewusst aktualisieren.
+
+Dies ist **keine vollständige Offline-Karte**. Kartenstil, Schriften, Symbole, weitere Mapbox-Dienste sowie fehlende, nicht verfügbare oder abgelaufene Kacheln benötigen weiterhin Internet. Ohne bestätigtes Vorabkontingent bleibt die normale Wiederverwendung beim Erkunden und Abspielen verfügbar.
 
 ### Kamera beim Start
 

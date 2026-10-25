@@ -71,3 +71,7 @@ dialog{border:0;padding:30px;background:var(--paper);color:var(--ink);border-rad
 .compass-direction b{font-weight:500;transform:rotate(var(--compass-bearing,0deg))}
 .compass-n{top:1px;left:17px;color:var(--gold)}.compass-e{right:1px;top:17px}.compass-s{bottom:1px;left:17px}.compass-w{left:1px;top:17px}
 .compass-center{color:var(--gold);font-size:12px}
+
+.disk-cache-panel progress{width:100%;accent-color:var(--forest)}.cache-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:12px 0}.cache-quotas{display:grid;gap:10px;margin:12px 0}.cache-quotas label{display:grid;gap:5px;font-size:12px}.cache-quotas input{padding:9px;width:100%;border:1px solid var(--line);border-radius:4px}.cache-confirm{display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.5}.cache-confirm input{flex:none;margin-top:3px}.disk-cache-panel details{padding:12px 0;border-block:1px solid var(--line)}.disk-cache-panel summary{cursor:pointer;font-size:13px}.disk-cache-panel [role="alert"]{color:#8c3525}.disk-cache-panel .button{max-width:100%}
+
+.disk-cache-panel>p{font-size:13px;line-height:1.55;margin:12px 0}.disk-cache-panel>p.field-help{font-size:11px;line-height:1.5}.disk-cache-panel .cache-actions .button{margin:0}.disk-cache-panel .cache-confirm{display:flex}.disk-cache-panel .cache-confirm input{width:auto;padding:0;margin-top:3px;accent-color:var(--forest)}

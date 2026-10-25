@@ -1,4 +1,5 @@
 import http from 'node:http';
+import { createTileAPI } from './tile-api.mjs';
 import { readFile, stat, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,11 +14,14 @@ try {
   }
 } catch (error) { if (error.code !== 'ENOENT') throw error; }
 
+const tileAPI = await createTileAPI(root);
+
 const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.geojson': 'application/geo+json; charset=utf-8', '.gpx': 'application/gpx+xml; charset=utf-8', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.svg': 'image/svg+xml', '.webp': 'image/webp' };
 const vendor = { '/vendor/mapbox-gl.js': path.join(root, 'node_modules/mapbox-gl/dist/mapbox-gl.js'), '/vendor/mapbox-gl.css': path.join(root, 'node_modules/mapbox-gl/dist/mapbox-gl.css') };
 const server = http.createServer(async (request, response) => {
   response.setHeader('X-Content-Type-Options', 'nosniff');
   response.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  if (await tileAPI.handle(request, response)) return;
   if (!['GET', 'HEAD'].includes(request.method)) { response.writeHead(405, { Allow: 'GET, HEAD' }); response.end(); return; }
   try {
     const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
@@ -46,4 +50,8 @@ const server = http.createServer(async (request, response) => {
 const port = Number(process.env.PORT || 5173);
 server.on('error', error => { console.error(error.code === 'EADDRINUSE' ? `Port ${port} wird bereits verwendet. Nutze PORT=5174 npm start.` : error.message); process.exitCode = 1; });
 server.listen(port, '127.0.0.1', () => console.log(`Traumpfad läuft auf http://localhost:${port}\nNur auf diesem Mac erreichbar. Beenden mit Ctrl+C.`));
-for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => server.close(() => process.exit(0)));
+let stopping = false;
+for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, async () => {
+  if (stopping) return; stopping = true;
+  server.close(); await tileAPI.close(); process.exit(0);
+});

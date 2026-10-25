@@ -1,6 +1,6 @@
 import { bearing, clamp, destination, distance, feature, pointAt, sliceRoute } from './route.js';
 import { describeMapError } from './map-error.js';
-import { createTileRequestGate } from './tile-request-gate.js';
+import { createMapRequestGate } from './tile-request-gate.js';
 import { interpolateCamera } from './camera-transition.js';
 import { scenicPoint, scenicHeading, easeHeading } from './camera-follow.js';
 import { overnightPlaces } from './overnight-places.js';
@@ -77,7 +77,7 @@ export class JourneyMap {
     try {
       // Keep satellite/DEM bursts small during camera moves on this local presentation.
       window.mapboxgl.maxParallelImageRequests = 4;
-      const map = new window.mapboxgl.Map({ container: 'map', accessToken: token, style: 'mapbox://styles/mapbox/standard-satellite', center: [11.48, 47.7], zoom: 8, pitch: 55, minPitch: 0, maxPitch: 85, pitchWithRotate: true, bearing: 0, antialias: true, attributionControl: true, minTileCacheSize: 64, maxTileCacheSize: 256, transformRequest: createTileRequestGate() });
+      const map = new window.mapboxgl.Map({ container: 'map', accessToken: token, style: 'mapbox://styles/mapbox/standard-satellite', center: [11.48, 47.7], zoom: 8, pitch: 55, minPitch: 0, maxPitch: 85, pitchWithRotate: true, bearing: 0, antialias: true, attributionControl: true, minTileCacheSize: 64, maxTileCacheSize: 256, transformRequest: createMapRequestGate() });
       this.map = map;
       map.on('style.load', () => {
         if (map !== this.map) return;

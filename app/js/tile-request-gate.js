@@ -1,3 +1,4 @@
+import { localTileRequest } from './local-tile-cache.js';
 import { isBrowserMapTileCached } from './browser-cache.js';
 
 // Spread network tile starts over time; native cache hits do not need this delay.
@@ -36,4 +37,9 @@ export function createTileRequestGate({ intervalMs = 150, isCached = isBrowserMa
       });
     });
   };
+}
+
+export function createMapRequestGate(options) {
+  const direct = createTileRequestGate(options);
+  return (url, type, context) => localTileRequest(url, type) || direct(url, type, context);
 }

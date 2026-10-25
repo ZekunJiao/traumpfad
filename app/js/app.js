@@ -1,3 +1,4 @@
+import { initDiskCache } from './disk-cache-ui.js';
 import { prepareRoute, validateJourney } from './route.js';
 import { TourPlayer } from './player.js';
 import { JourneyMap } from './map.js';
@@ -275,6 +276,7 @@ async function init() {
   const config = configResponse.ok ? await configResponse.json() : {};
   hasServerToken = Boolean(config.mapboxToken);
   updateTokenStorageStatus();
+  initDiskCache({ getToken: () => storageGet() || config.mapboxToken || '' });
   // A diagnostic tab must not start a full tile load before its single-request check.
   map.setToken(new URLSearchParams(window.location.search).get('diagnose') === '1' ? '' : storageGet() || config.mapboxToken || '');
   render(player.state, 'initial');
