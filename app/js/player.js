@@ -49,25 +49,25 @@ export class TourPlayer {
     if (this.state.progress === 0) this.state.shownStartStop = false;
     this.emit('seek');
   }
-  openStop(stop) {
+  openStop(stop, { manual = false } = {}) {
     Object.assign(this.state, { progress: stop.progress, stopId: stop.id, status: 'stop', started: true });
     if (stop.progress === 0) this.state.shownStartStop = true;
-    this.emit('stop');
+    this.emit(manual ? 'stop-jump' : 'stop');
   }
   closeStop() { if (this.state.status === 'stop') { Object.assign(this.state, { status: 'paused', stopId: null }); this.emit('pause'); } }
   next() {
     const stop = this.stops.find(s => s.progress > this.state.progress + 1e-7);
-    if (stop) return this.openStop(stop);
+    if (stop) return this.openStop(stop, { manual: true });
     if (this.state.stageIndex < this.stages.length - 1) return this.selectStage(this.state.stageIndex + 1);
     Object.assign(this.state, { progress: 1, status: 'stage-end', stopId: null }); this.emit('end');
   }
   previous() {
     const stop = this.stops.filter(s => s.progress < this.state.progress - 1e-7).at(-1);
-    if (stop) return this.openStop(stop);
+    if (stop) return this.openStop(stop, { manual: true });
     if (this.state.stageIndex > 0) {
       this.selectStage(this.state.stageIndex - 1);
       const last = this.stops.at(-1);
-      return last ? this.openStop(last) : this.seek(1);
+      return last ? this.openStop(last, { manual: true }) : this.seek(1);
     }
     this.seek(0);
   }

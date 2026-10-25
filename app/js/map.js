@@ -40,13 +40,16 @@ export class JourneyMap {
     this.routes.forEach((route, i) => {
       const path = svgNode('path', { d: line(route.points), fill: 'none', stroke: '#e9ebce', 'stroke-width': '2', opacity: '.28', 'stroke-linejoin': 'round', 'stroke-linecap': 'round' });
       this.schemaPaths.push(path); svg.append(path);
+      if (this.stages[i].isFullRoute && this.routes.length > 1) return;
       const p = this.project(route.points[0]);
       svg.append(svgNode('circle', { cx: p[0], cy: p[1], r: 4, fill: '#dcdcc0', opacity: '.7' }));
       svg.append(svgNode('text', { x: p[0] + 12, y: p[1] + 4, class: 'schema-label' }, this.stages[i].start));
     });
-    const end = this.project(points.at(-1));
+    const fullRouteIndex = this.stages.findIndex(stage => stage.isFullRoute);
+    const finalIndex = fullRouteIndex >= 0 ? fullRouteIndex : this.routes.length - 1;
+    const end = this.project(this.routes[finalIndex].points.at(-1));
     svg.append(svgNode('circle', { cx: end[0], cy: end[1], r: 4, fill: '#dcdcc0' }));
-    svg.append(svgNode('text', { x: end[0] + 12, y: end[1] + 4, class: 'schema-label' }, this.stages.at(-1).end));
+    svg.append(svgNode('text', { x: end[0] + 12, y: end[1] + 4, class: 'schema-label' }, this.stages[finalIndex].end));
     this.schemaTravelled = svgNode('path', { fill: 'none', stroke: '#e8c183', 'stroke-width': '3.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
     this.schemaDot = svgNode('circle', { r: 6, fill: '#f2d89b', stroke: '#314b3a', 'stroke-width': 3 });
     svg.append(this.schemaTravelled, this.schemaDot);
@@ -87,7 +90,9 @@ export class JourneyMap {
           map.addLayer({ id: 'journey-active', type: 'line', slot: 'middle', source: 'journey-active', paint: { 'line-color': '#f2c578', 'line-width': 4, 'line-opacity': .45 }, layout: { 'line-join': 'round', 'line-cap': 'round' } });
           map.addSource('journey-travelled', { type: 'geojson', data: feature(sliceRoute(this.routes[this.stageIndex], this.progress)) });
           map.addLayer({ id: 'journey-travelled', type: 'line', slot: 'middle', source: 'journey-travelled', paint: { 'line-color': '#ffd990', 'line-width': 5 }, layout: { 'line-join': 'round', 'line-cap': 'round' } });
+          const pendingStop = this.pendingStopProgress;
           this.ready = true; this.container.hidden = true; this.onStatus('ready'); this.setStage(this.stageIndex); this.setExplore(this.exploring);
+          if (Number.isFinite(pendingStop)) this.focusStop(pendingStop);
         } catch (error) { this.fail('Die 3D-Karte konnte nicht aufgebaut werden. ' + error.message); }
       });
       map.on('error', event => {
@@ -119,6 +124,7 @@ export class JourneyMap {
     this.container.hidden = false; this.onStatus('error', message);
   }
   setStage(index) {
+    this.pendingStopProgress = null;
     this.cancelCameraMotion();
     this.stageIndex = index; this.progress = 0; this.cameraPosition = null; this.cameraAltitude = null;
     this.updateSchema();
@@ -132,16 +138,24 @@ export class JourneyMap {
     });
     this.setProgress(0, false); this.flyToRoutePoint(0);
   }
+  focusStop(progress) {
+    this.cancelCameraMotion(); this.cameraPosition = null; this.cameraAltitude = null;
+    if (!this.ready) { this.pendingStopProgress = progress; this.setProgress(progress, false); return; }
+    this.pendingStopProgress = null;
+    if (this.exploring) { this.setProgress(progress, false); this.flyToRoutePoint(progress); }
+    else this.setProgress(progress);
+  }
   cancelCameraMotion(stopMap = true) {
     this.motionVersion = (this.motionVersion || 0) + 1;
     if (this.nativeMotion) this.map?.off?.('moveend', this.nativeMotion);
     this.nativeMotion = null; this.entry = null; this.followRequested = false;
+    this.pendingStopProgress = null;
     this.preparingFollow = false; this.waitingForTerrain = false; this.following = false;
     if (stopMap) this.map?.stop();
   }
   pauseCamera() {
     this.followRequested = false;
-    if (this.entry || this.nativeMotion || this.preparingFollow) this.cancelCameraMotion();
+    if (this.entry || this.nativeMotion || this.preparingFollow || Number.isFinite(this.pendingStopProgress)) this.cancelCameraMotion();
   }
   animateNavigation(action) {
     this.cancelCameraMotion();

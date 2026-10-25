@@ -77,7 +77,8 @@ test('ambiguous days require review instead of guessing', () => {
 test('journey validation catches broken stop references and invalid dates', async () => {
   const journey = JSON.parse(await readFile(new URL('../app/data/journey.json', import.meta.url), 'utf8'));
   assert.deepEqual(validateJourney(journey), []);
-  journey.stages[0].stops[0].photoIds.push('missing'); journey.stages[0].date = '2025-02-30';
+  const stage = journey.stages.find(s => s.stops.length);
+  stage.stops[0].photoIds.push('missing'); stage.date = '2025-02-30';
   const errors = validateJourney(journey);
   assert.ok(errors.some(e => e.includes('missing'))); assert.ok(errors.some(e => e.includes('Datum')));
 });

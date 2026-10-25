@@ -39,9 +39,21 @@ Neue Konten ohne Zahlungsmethode haben einen eingeschränkten Testzugang. Laut [
 
 ## Stand der Inhalte
 
-Enthalten sind **sieben ausdrücklich schematische Beispieletappen, zehn Fotostopps und elf Bildplätze**. Es wurden keine eigenen Reisefotos, Reisedaten oder Erlebnisse erfunden. Die Verbindungen zwischen den Beispielorten sind **keine Wandertracks** und eignen sich nicht zur Navigation. Die grobe Etappenfolge orientiert sich an der [klassischen Übersicht München–Venedig](https://www.alpin.de/touren/reportagen/6320/artikel_info__muenchen_-_venedig.html); sie muss mit deinen tatsächlichen Tagen abgeglichen werden.
+Enthalten sind die **GPX-Gesamtstrecke München–Venedig und sieben erste Referenzabschnitte**, zehn ausdrücklich beispielhafte Fotostopps und elf Bildplätze. Es wurden keine eigenen Reisefotos, Reisedaten oder Erlebnisse erfunden. Persönliche Tagesgrenzen und Fotostopps müssen noch mit deiner Reise abgeglichen werden.
 
-Die Struktur ist auf beliebig viele Etappen vorbereitet. Alle 27 persönlichen Reisetage werden ergänzt, sobald ihre Daten und Inhalte vorliegen.
+Die Struktur ist auf beliebig viele Etappen vorbereitet. Alle 27 persönlichen Reisetage werden ergänzt, sobald ihre Daten und Inhalte vorliegen. Die Gesamtstrecke ist bereits vollständig als Referenz auswählbar und wird nicht als zusätzlicher persönlicher Reisetag gezählt.
+
+### GPX-Referenzroute
+
+Die unveränderte Quelldatei liegt unter `app/data/routes/traumpfad-muenchen-venedig.gpx`, die für die Karte konvertierte Gesamtstrecke unter `app/data/routes/gesamtstrecke.geojson`. Download auch in **⚙ → Die GPX-Route**. Der Gesamtflug dauert bei einfacher Geschwindigkeit 20 Minuten; der Schieberegler erlaubt direkte Sprünge.
+
+Quelle: [Fastest Known Time – Traumpfad München–Venedig](https://fastestknowntime.com/route/traumpfad-munchen-venedig-germany-austria-italy), Datei „traumpfad muenchen venedig -komplett-.gpx“. Ursprünglicher Autor laut GPX: Björn Mußmann – Outdooractive Community, [Originaltour 104193538](https://www.outdooractive.com/r/104193538), Stand 23.08.2018, heruntergeladen am 25.10.2026. 35.524 Punkte einschließlich Höhenangaben, ca. 545 km. Es ist ein veröffentlichter Referenztrack mit Varianten und Fährüberfahrt, keine persönliche Aufzeichnung und keine Zusicherung aktueller Begehbarkeit.
+
+Die sieben ersten Abschnitte sind unveränderte, aufeinanderfolgende Ausschnitte dieser Punktfolge. Ihre Grenzen wurden am Track angenähert. Der siebte Abschnitt endet in Wattens: Die veröffentlichte Variante passiert Hall nicht direkt; eine erfundene Verbindung nach Hall wurde vermieden. Die ursprünglichen schematischen Dateien sind unter `.cache/routes-before-gpx/` gesichert.
+
+Die Punktabstände wurden geprüft. Der größte Abstand beträgt rund 1,36 km nahe Sottoguda (11.905360 / 46.441406 bis 11.906199 / 46.429194); dieser Teil ist im Original nur grob beschrieben und wird unverändert übernommen. Die Linie wird dort nicht als metergenauer Weg ausgegeben. Die Fährstrecke nach Venedig bleibt Bestandteil der Quelle. Fotostopps bleiben ausdrücklich Beispiele an ungefähren Positionen.
+
+Ein zweiter geprüfter Download vom [GPS Wanderatlas](https://www.ich-geh-wandern.de/traumpfad-muenchen-venedig) war mit 4.988 Punkten und mehreren Abständen über zwei Kilometer gröber und wurde nicht eingebaut. Die [Rother-GPX-Dateien](https://gps.rother.de/download/muenchen-venedig-06-auflage/) benötigen das Passwort aus dem Wanderführer und beschreiben teils andere Varianten.
 
 ## Bedienung
 
@@ -50,8 +62,9 @@ Die Struktur ist auf beliebig viele Etappen vorbereitet. Alle 27 persönlichen R
 | Reise starten | „Die Reise beginnen“ |
 | Flug starten / pausieren | Play-Schaltfläche oder Leertaste |
 | Nächster / vorheriger Fotostopp | Transporttasten oder Pfeil rechts / links |
-| Fotostopp fortsetzen | „Weiter auf dem Weg“ oder Leertaste |
-| Bilder innerhalb eines Fotostopps | Bildpfeile oder Pfeiltasten im Dialog |
+| Fotostopp fortsetzen | ▶, „Weiter auf dem Weg“ oder Leertaste |
+| Bilder innerhalb eines Fotostopps | Bildpfeile oder Pfeil rechts / links; jeweils bis zu drei Bilder |
+| Fotostopp ausblenden und pausiert bleiben | „Fotos ausblenden“ oder `Escape` |
 | Tagesgalerie | „Tagesgalerie öffnen“ oder `G` |
 | Dialog schließen | Kreuz oder `Escape` |
 | Vollbild | Schaltfläche oben rechts oder `F` |
@@ -64,7 +77,7 @@ Die Struktur ist auf beliebig viele Etappen vorbereitet. Alle 27 persönlichen R
 
 Die Maussteuerung gilt für die verbundene Mapbox-Karte. Beim ersten Zoom oder Ziehen wechselt die App ohne neuen Anflug ins Erkunden und hält den Präsentationsstand fest. „Präsentieren“ führt die Kamera zum gespeicherten Stand zurück; ▶ setzt den Flug fort. Automatische Kamerafahrten lösen diesen Wechsel nicht aus.
 
-An Fotostopps und am Ende einer Etappe pausiert der Flug. Nach dem letzten Tag startet Play die Reise erneut. Beim Wechsel in einen anderen Browser-Tab wird der Flug pausiert. Im Vollbild bleiben die Quellenangaben sichtbar. Auf schmalen Bildschirmen steht die Etappenliste unter der Karte.
+An Fotostopps und am Ende einer Etappe pausiert der Flug. Nach dem Kameraanflug erscheinen die Bilder als Collage direkt über der weiterhin bedienbaren Karte: 650 ms Einblendung, 150 ms Versatz und 400 ms Ausblendung. Auf schmalen oder niedrigen Bildschirmen erscheint jeweils ein Bild; die Einstellung für reduzierte Bewegung wird berücksichtigt. Die Tagesgalerie verwendet weiterhin ihre eigene Bildansicht. Nach dem letzten Tag startet Play die Reise erneut. Beim Wechsel in einen anderen Browser-Tab wird der Flug pausiert. Im Vollbild bleiben die Quellenangaben sichtbar. Auf schmalen Bildschirmen steht die Etappenliste unter der Karte.
 
 ## Eigene Fotos importieren
 

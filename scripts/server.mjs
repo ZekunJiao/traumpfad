@@ -13,7 +13,7 @@ try {
   }
 } catch (error) { if (error.code !== 'ENOENT') throw error; }
 
-const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.geojson': 'application/geo+json; charset=utf-8', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.svg': 'image/svg+xml', '.webp': 'image/webp' };
+const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.geojson': 'application/geo+json; charset=utf-8', '.gpx': 'application/gpx+xml; charset=utf-8', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.svg': 'image/svg+xml', '.webp': 'image/webp' };
 const vendor = { '/vendor/mapbox-gl.js': path.join(root, 'node_modules/mapbox-gl/dist/mapbox-gl.js'), '/vendor/mapbox-gl.css': path.join(root, 'node_modules/mapbox-gl/dist/mapbox-gl.css') };
 const server = http.createServer(async (request, response) => {
   response.setHeader('X-Content-Type-Options', 'nosniff');

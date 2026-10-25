@@ -16,3 +16,33 @@ dialog{border:0;padding:30px;background:var(--paper);color:var(--ink);border-rad
 #token-message{white-space:pre-line;overflow-wrap:anywhere}
 
 .cache-panel p{font-size:13px;color:#6c796b;line-height:1.7}.cache-panel #cache-message{padding:12px;background:#e8ece1;border-radius:4px;color:var(--ink)}.cache-panel .field-help{font-size:11px}
+
+/* Photo stops live in the map, without a modal surface or a backdrop. */
+.photo-collage{position:absolute;inset:0;z-index:2;pointer-events:none;color:var(--paper)}
+.collage-images{position:absolute;inset:0;pointer-events:none}
+.collage-card{position:absolute;margin:0;opacity:0;transform:translateY(14px) scale(.98);transition:opacity 400ms ease,transform 400ms ease;pointer-events:none;max-width:calc(100% - 40px)}
+.photo-collage.is-visible .collage-card.is-shown{opacity:1;transform:translateY(0) scale(1);transition-duration:650ms;transition-timing-function:cubic-bezier(.2,.7,.2,1);transition-delay:var(--photo-delay,0ms)}
+.collage-slot-0{top:82px;right:32px;width:min(29%,370px)}
+.collage-slot-1{top:var(--collage-photo-top,300px);left:40px;width:min(26%,330px)}
+.collage-slot-2{bottom:var(--collage-lower-bottom,250px);right:56px;width:min(24%,310px)}
+.collage-visual{display:flex;align-items:center;justify-content:center;height:clamp(110px,calc(var(--map-height,800px)*.21),260px)}
+.collage-slot-1 .collage-visual{height:var(--collage-left-height,180px)}
+.collage-slot-2 .collage-visual{height:clamp(100px,calc(var(--map-height,800px)*.18),200px)}
+.collage-visual img{display:block;width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;box-shadow:0 12px 32px #071c2366;border-radius:3px}
+.collage-visual .sample-image{min-height:0;height:100%;border-radius:3px;padding:20px;box-shadow:0 12px 32px #071c2366}
+.collage-visual .sample-symbol{font-size:50px;margin-bottom:8px}.collage-visual .sample-image h3{font-size:24px;margin-bottom:8px}.collage-visual .sample-image p{font-size:10px;margin-bottom:0}
+.collage-card figcaption{padding:9px 12px;margin-top:5px;border-radius:3px;background:linear-gradient(90deg,#102b28dd,#102b2899);text-shadow:0 1px 3px #0006}
+.collage-card figcaption strong{display:block;font-size:12px;font-weight:500;margin-bottom:3px}.collage-card figcaption span{font-size:10px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.collage-controls{position:absolute;bottom:var(--collage-controls-bottom,165px);left:50%;transform:translate(-50%,8px);opacity:0;width:max-content;max-width:calc(100% - 48px);padding:12px 16px;border-radius:5px;background:#102b28e8;box-shadow:0 8px 28px #071c2333;transition:opacity 400ms ease,transform 400ms ease;pointer-events:auto}
+.photo-collage.is-visible .collage-controls{opacity:1;transform:translate(-50%,0)}
+.collage-heading{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:8px}.collage-heading .eyebrow{font-size:8px;letter-spacing:1.3px;margin:0;color:var(--gold)}.collage-heading h2{font-size:21px;margin:0}.collage-location{font-size:9px;color:#f4f1e9ae}
+.collage-actions,.collage-pages{display:flex;align-items:center;gap:12px}.collage-pages{gap:3px}.collage-pages .icon-button{font-size:20px;min-width:30px;min-height:30px}.collage-count{font-size:10px;color:#f4f1e9bf;white-space:nowrap}.collage-hide{background:transparent;color:#f4f1e9bf;font-size:10px;white-space:nowrap;padding:10px}.collage-hide:hover{color:var(--gold)}.collage-actions .button{padding:10px 13px;font-size:11px;white-space:nowrap;margin-left:auto}
+.main.has-collage .stage-card{padding:15px 18px}.main.has-collage .stage-card h1{font-size:27px;margin-bottom:6px}.main.has-collage .stage-card>.eyebrow{font-size:8px;margin-bottom:7px}.main.has-collage .stage-card>p:not(.eyebrow),.main.has-collage .stage-facts{display:none}.main.has-collage .stage-card>.text-button{padding-top:5px;font-size:10px}
+.photo-collage[data-compact=true] .collage-card{top:var(--collage-photo-top,210px);left:50%;right:auto;bottom:auto;transform:translate(-50%,14px) scale(.98);width:min(420px,calc(100% - 40px))}
+.photo-collage[data-compact=true].is-visible .collage-card.is-shown{transform:translate(-50%,0) scale(1)}
+.photo-collage[data-compact=true] .collage-visual{height:min(300px,var(--collage-small-height,180px))}
+.main.has-collage:has(.photo-collage[data-compact=true]) .stage-card h1{font-size:22px}.main.has-collage:has(.photo-collage[data-compact=true]) .stage-card>.text-button{display:none}
+.photo-collage[data-compact=true] .collage-controls{width:calc(100% - 32px);max-width:none;padding:10px 12px}.photo-collage[data-compact=true] .collage-heading{gap:5px 10px;margin-bottom:6px}.photo-collage[data-compact=true] .collage-heading h2{font-size:18px}.photo-collage[data-compact=true] .collage-location{display:none}.photo-collage[data-compact=true] .collage-actions{gap:5px;flex-wrap:wrap}.photo-collage[data-compact=true] .collage-hide{padding:7px 3px}.photo-collage[data-compact=true] .collage-count{font-size:9px}.photo-collage[data-compact=true] .collage-actions .button{padding:9px;font-size:10px}
+.main.has-collage:has(.photo-collage[data-compact=true]) .stage-card{top:64px;padding:12px 16px}.main.has-collage:has(.photo-collage[data-compact=true]) .stage-card h1{font-size:20px}
+.photo-collage[data-compact=true] .collage-heading .eyebrow{display:none}.photo-collage[data-compact=true] .collage-heading h2{font-size:16px}
+@media(prefers-reduced-motion:reduce){.photo-collage .collage-card,.photo-collage .collage-controls{transition:none!important}}

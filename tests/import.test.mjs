@@ -16,7 +16,7 @@ async function fixture() {
   for (const file of ['scripts/import-photos.mjs', 'scripts/photo-utils.mjs', 'scripts/import-route.mjs', 'app/js/route.js']) await copyFile(path.join(project, file), path.join(dir, file));
   await writeFile(path.join(dir, 'package.json'), '{"type":"module"}');
   const manifest = JSON.parse(await readFile(path.join(project, 'app/data/journey.json'), 'utf8'));
-  manifest.stages[0].date = '2025-07-12';
+  manifest.stages.find(s => s.id === 'tag-01').date = '2025-07-12';
   await writeFile(path.join(dir, 'app/data/journey.json'), JSON.stringify(manifest));
   return dir;
 }
