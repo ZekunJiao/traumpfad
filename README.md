@@ -13,7 +13,7 @@ npm start
 
 Danach [http://localhost:5173](http://localhost:5173) öffnen. Mit `Ctrl+C` im Terminal beenden. Alternativ `Start-Traumpfad.command` im Finder doppelklicken und den angezeigten Link öffnen. Bei belegtem Port: `PORT=5174 npm start`.
 
-Ohne Mapbox-Schlüssel funktioniert die schematische Vorschau einschließlich Vortragssteuerung, Bildplätzen und Galerien. Für Satellitenbilder und 3D-Gelände oben auf **Satellitenkarte verbinden** klicken und einen öffentlichen Mapbox-Token (`pk.…`) eingeben. Er wird in diesem Browser gespeichert und kann in den Einstellungen wieder entfernt werden. Alternativ `.env.example` nach `.env` kopieren und `MAPBOX_PUBLIC_TOKEN` eintragen. Der Server muss danach neu gestartet werden. Keine geheimen Mapbox-Tokens (`sk.…`) verwenden.
+Ohne Mapbox-Schlüssel funktioniert die schematische Vorschau einschließlich Vortragssteuerung, Bildplätzen und Galerien. Für Satellitenbilder und 3D-Gelände oben auf **Satellitenkarte verbinden** klicken und einen öffentlichen Mapbox-Token (`pk.…`) eingeben. Er wird für die aktuelle Browser-Adresse gespeichert und beim nächsten Öffnen automatisch verwendet. In den Einstellungen zeigt ein Hinweis den Speicherstatus an; das leere Eingabefeld dient nur zum Ersetzen des Schlüssels. Ein Wechsel zwischen `localhost:5173`, `localhost:5174`, `127.0.0.1` oder verschiedenen Browsern verwendet getrennte Speicher. Der Schlüssel kann in den Einstellungen wieder entfernt werden. Alternativ `.env.example` nach `.env` kopieren und `MAPBOX_PUBLIC_TOKEN` eintragen. Der Server muss danach neu gestartet werden. Keine geheimen Mapbox-Tokens (`sk.…`) verwenden.
 
 Die Karte benötigt Internet und WebGL2. Ein Mapbox-Schlüssel ist für den Live-Test der Satellitenansicht erforderlich. Die Kartenattribution bleibt eingeblendet. Paketdateien werden lokal ausgeliefert.
 
@@ -71,11 +71,11 @@ Ein zweiter geprüfter Download vom [GPS Wanderatlas](https://www.ich-geh-wander
 | Etappe überspringen | Etappe links auswählen |
 | Frei navigieren | Ziehen pausiert und wechselt ins Erkunden. Zoomen läuft während des Flugs weiter; „Präsentieren“ kehrt zum gespeicherten Stand zurück |
 | Karte zoomen | Mausrad / Trackpad scrollen oder Doppelklick; Umschalt + Doppelklick zoomt heraus |
+| Kamerahöhe ändern | Shift halten und mit linker oder rechter Maustaste hoch/runter ziehen. Der Flug läuft weiter. |
 | Karte verschieben | Linke Maustaste halten und ziehen |
 | Während des Flugs umsehen | Rechte Maustaste halten und ziehen: links/rechts dreht den Blick, hoch/runter neigt ihn. Der Flug folgt weiter der Route. |
 
 Die Maussteuerung gilt für die verbundene Mapbox-Karte. Verschieben mit der linken Maustaste pausiert den Flug und wechselt ins Erkunden. Die Bewegung ist auf ein Viertel gedämpft und bei großer Höhe auf 50 Meter pro Pixel begrenzt. Zoom mit Mausrad, Trackpad, Doppelklick oder +/− verändert den Kameraabstand, ohne den Flug zu unterbrechen. Die rechte Maustaste (am Mac auch Ctrl + linke Maustaste) steuert die Blickrichtung: Während der Präsentation folgt die Kameraposition weiter der Route, die Wiedergabe läuft weiter. Die Blickrichtung bleibt relativ zur Route erhalten, auch in Kurven. „Präsentieren“ führt die Kamera zum gespeicherten Stand zurück; ▶ setzt den Flug fort. Automatische Kamerafahrten lösen diesen Wechsel nicht aus.
-
 An Fotostopps und am Ende einer Etappe pausiert der Flug. Nach dem Kameraanflug erscheinen die Bilder als Collage direkt über der weiterhin bedienbaren Karte: 650 ms Einblendung, 150 ms Versatz und 400 ms Ausblendung. Auf schmalen oder niedrigen Bildschirmen erscheint jeweils ein Bild; die Einstellung für reduzierte Bewegung wird berücksichtigt. Die Tagesgalerie verwendet weiterhin ihre eigene Bildansicht. Nach dem letzten Tag startet Play die Reise erneut. Beim Wechsel in einen anderen Browser-Tab wird der Flug pausiert. Im Vollbild bleiben die Quellenangaben sichtbar. Auf schmalen Bildschirmen steht die Etappenliste unter der Karte.
 
 ## Eigene Fotos importieren

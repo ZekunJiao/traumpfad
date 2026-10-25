@@ -219,8 +219,15 @@ function mapStatus(status, message) {
   else if (status === 'ready' || status === 'schematic') text('token-message', '');
   if (message) notify(message);
 }
+let hasServerToken = false;
+function updateTokenStorageStatus() {
+  const saved = Boolean(storageGet());
+  text('token-storage-status', saved ? `Schlüssel für ${location.host} im Browser gespeichert. Er wird beim Öffnen automatisch verwendet. Das leere Eingabefeld dient nur zum Ersetzen.` : hasServerToken ? 'Der Schlüssel des lokalen Servers wird automatisch verwendet.' : `Für ${location.host} ist noch kein Schlüssel im Browser gespeichert.`);
+  $('mapbox-token').placeholder = saved ? 'Gespeichert · zum Ersetzen pk.… eingeben' : 'pk.…';
+  text('save-token', saved ? 'Schlüssel ersetzen und aktivieren ↗' : 'Schlüssel speichern und aktivieren ↗');
+}
 function storageGet() { try { return localStorage.getItem('traumpfad.mapbox-token') || ''; } catch { return ''; } }
-function storageSet(value) { try { if (value) localStorage.setItem('traumpfad.mapbox-token', value); else localStorage.removeItem('traumpfad.mapbox-token'); } catch { notify('Der Browser erlaubt keine Speicherung. Der Schlüssel gilt für diese Sitzung.'); } }
+function storageSet(value) { try { if (value) localStorage.setItem('traumpfad.mapbox-token', value); else localStorage.removeItem('traumpfad.mapbox-token'); updateTokenStorageStatus(); } catch { notify('Der Browser erlaubt keine Speicherung. Der Schlüssel gilt für diese Sitzung.'); } }
 
 async function refreshBrowserCache() {
   const button = $('check-cache');
@@ -258,6 +265,8 @@ async function init() {
   text('cover-title', journey.title); $('cover-title').style.whiteSpace = 'pre-line'; $('cover-title').textContent = journey.title.replace(' Ein ', '\nEin ');
   const total = document.querySelector('.trip-total-number'); total.textContent = journey.totalDays;
   const config = configResponse.ok ? await configResponse.json() : {};
+  hasServerToken = Boolean(config.mapboxToken);
+  updateTokenStorageStatus();
   // A diagnostic tab must not start a full tile load before its single-request check.
   map.setToken(new URLSearchParams(window.location.search).get('diagnose') === '1' ? '' : storageGet() || config.mapboxToken || '');
   render(player.state, 'initial');
