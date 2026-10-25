@@ -46,6 +46,12 @@ dialog{border:0;padding:30px;background:var(--paper);color:var(--ink);border-rad
 .main.has-collage:has(.photo-collage[data-compact=true]) .stage-card{top:64px;padding:12px 16px}.main.has-collage:has(.photo-collage[data-compact=true]) .stage-card h1{font-size:20px}
 .photo-collage[data-compact=true] .collage-heading .eyebrow{display:none}.photo-collage[data-compact=true] .collage-heading h2{font-size:16px}
 @media(prefers-reduced-motion:reduce){.photo-collage .collage-card,.photo-collage .collage-controls{transition:none!important}}
-.camera-controls{display:grid;grid-template-columns:auto minmax(60px,1fr) 3ch;align-items:center;gap:8px 12px;margin:10px 0;color:var(--ink);font-size:11px}
-.camera-controls[hidden]{display:none}.camera-controls input{width:100%;min-width:0;accent-color:var(--gold);cursor:pointer}.camera-controls output{text-align:right;font-variant-numeric:tabular-nums}.camera-controls p{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 12px;grid-column:1/-1;margin:0;color:var(--muted);font-size:10px;line-height:1.4}
-.main:has(.camera-controls:not([hidden])) .map-caption{bottom:255px}
+
+/* A compact video-style transport leaves the landscape visible. */
+.player{display:flex;align-items:center;gap:16px;padding:10px 14px;background:transparent;border:0;box-shadow:none;backdrop-filter:none;color:var(--paper)}
+.player .play-button{flex:0 0 38px;width:38px;height:38px;background:#102b2866;color:#fff;text-shadow:0 1px 3px #0008}
+.player .route-progress{flex:1;min-width:0;width:auto;margin:0;height:24px;accent-color:var(--gold);filter:drop-shadow(0 1px 2px #0008)}
+.player #speed-select{flex:0 0 auto;max-width:65px;padding:8px 3px;border:0;background:transparent;color:#fff;font-size:12px;text-shadow:0 1px 3px #0008;cursor:pointer}
+.player #speed-select option{background:var(--forest);color:#fff}
+.main .map-caption{bottom:100px}
+@media(max-width:760px){.player{gap:10px;padding:8px 0}.main .map-caption{bottom:92px}.player .play-button{flex-basis:40px;width:40px;height:40px}}

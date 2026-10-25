@@ -121,7 +121,7 @@ test('automatic camera movements do not interrupt the presentation', () => {
   assert.equal(player.state.status, 'playing');
   assert.equal(view.entry, entry);
 });
-test('a gesture cancels camera flight, freezes progress, and allows return from the visible pose', () => {
+test('explicit explore freezes progress and allows return from the visible pose', () => {
   const { view, player, stats, takeovers } = manualNavigationFixture();
   player.play();
   const entry = view.entry;
@@ -129,8 +129,8 @@ test('a gesture cancels camera flight, freezes progress, and allows return from 
   const visible = stats().pose;
   view.map.stop = () => assert.fail('takeover must not cancel the active mouse gesture');
   const gesture = { type: 'movestart', originalEvent: { type: 'wheel' } };
-  view.handleUserNavigation(gesture);
-  view.handleUserNavigation(gesture);
+  view.setExplore(true, { userGesture: true });
+  view.onExplore();
   assert.equal(takeovers(), 1);
   assert.equal(view.entry, null);
   assert.equal(player.state.mode, 'explore');
@@ -261,5 +261,106 @@ test('right-button pointer gestures adjust the view without activating native pa
   listeners.get('pointermove')(event({ clientX: 200 }));
   assert.equal(view.viewBearing, 10);
   const left = event({ button: 0 }); listeners.get('pointerdown')(left);
-  assert.equal(left.stopped, undefined);
+  assert.equal(left.stopped, true);
+});
+
+test('zoom distance persists while route playback continues and keeps terrain clearance', () => {
+  const { view, player, takeovers, stats } = manualNavigationFixture();
+  player.play(); view.advanceCamera(view.entry.startedAt + view.entry.duration);
+  view.zoomBy(1);
+  assert.equal(view.viewDistance, .5);
+  player.tick(1);
+  assert.equal(player.state.progress, .1);
+  assert.equal(player.state.status, 'playing');
+  assert.equal(player.state.mode, 'presentation');
+  assert.equal(takeovers(), 0);
+  assert.ok(stats().pose.position.z >= 1850 / 40000000);
+  view.zoomBy(100); assert.equal(view.viewDistance, .3);
+  view.zoomBy(-100); assert.equal(view.viewDistance, 4);
+  view.exploring = true; view.zoomBy(1); assert.equal(view.viewDistance, 4);
+});
+test('wheel and zoom buttons change follow distance without invoking native map gestures', () => {
+  const { view, player, takeovers } = manualNavigationFixture();
+  const surfaceListeners = new Map(), containerListeners = new Map();
+  view.map.getCanvasContainer = () => ({ addEventListener(type, handler) { surfaceListeners.set(type, handler); } });
+  view.map.getContainer = () => ({ addEventListener(type, handler) { containerListeners.set(type, handler); } });
+  view.bindZoomControls(view.map);
+  player.play(); const approach = view.entry;
+  const wheel = { deltaY: -250, deltaMode: 0, preventDefault() { this.prevented = true; }, stopImmediatePropagation() { this.stopped = true; } };
+  surfaceListeners.get('wheel')(wheel);
+  assert.equal(wheel.prevented, true); assert.equal(wheel.stopped, true);
+  assert.equal(view.entry, approach); assert.ok(view.viewDistance < 1);
+  const zoomed = view.viewDistance;
+  containerListeners.get('click')({ target: { closest: () => ({ classList: { contains: () => false } }) }, preventDefault() {}, stopImmediatePropagation() {} });
+  assert.ok(view.viewDistance > zoomed);
+  assert.equal(takeovers(), 0); assert.equal(player.state.status, 'playing');
+  view.exploring = true;
+  const freeWheel = { ...wheel, prevented: false, stopped: false };
+  surfaceListeners.get('wheel')(freeWheel); assert.equal(freeWheel.prevented, false);
+});
+
+test('dragging pauses playback and limits high-altitude pan distance', () => {
+  const { view, player, takeovers } = manualNavigationFixture();
+  view.map.getCanvasContainer = () => ({ clientWidth: 1000, clientHeight: 800 });
+  view.map.unproject = ([x, y]) => ({ lng: 11 + x / 100, lat: 47 - y / 100 });
+  let center = { lng: 11, lat: 47 };
+  view.map.getCenter = () => center;
+  view.map.setCenter = ([lng, lat]) => { center = { lng, lat }; };
+  player.play(); view.advanceCamera(view.entry.startedAt + view.entry.duration);
+  view.panBy(100, 0);
+  assert.equal(player.state.status, 'paused');
+  assert.equal(player.state.mode, 'explore');
+  assert.equal(takeovers(), 1);
+  const frozen = player.state.progress;
+  player.tick(1); assert.equal(player.state.progress, frozen);
+  assert.ok(center.lng < 11 && center.lng > 10.9);
+  view.panBy(100, 0); assert.equal(takeovers(), 1);
+});
+test('50x playback still stops at the first photo instead of skipping intervening stories', () => {
+  const player = new TourPlayer([{ durationSeconds: 10, stops: [{ id: 'first', progress: .2 }, { id: 'second', progress: .4 }] }]);
+  player.state.speed = 50; player.play(); player.tick(.1);
+  assert.equal(player.state.status, 'stop'); assert.equal(player.state.stopId, 'first');
+  assert.equal(player.state.progress, .2);
+  player.play(); player.tick(.1);
+  assert.equal(player.state.stopId, 'second');
+});
+
+test('a panned approach targets the offset and cannot repeat forever outside viewport bounds', () => {
+  const { view } = transitionFixture();
+  view.viewOffset = [.02, .01];
+  view.map.getBounds = () => ({ contains: () => false });
+  let flights = 0, center;
+  view.animateNavigation = action => action();
+  view.map.flyTo = options => { flights++; center = options.center; };
+  view.setProgress(.3);
+  assert.equal(flights, 1);
+  assert.equal(view.routeFramed, true);
+  assert.ok(center[0] > 11.04 && center[1] > 47.03);
+  view.setProgress(.3);
+  assert.equal(flights, 1);
+  assert.ok(view.entry);
+  view.advanceCamera(view.entry.startedAt + view.entry.duration);
+  assert.equal(view.following, true);
+});
+test('an interrupted native transition releases its playback gate even without moveend', () => {
+  const { view } = transitionFixture();
+  let completions = 0;
+  view.nativeMotionStarted = 100;
+  view.nativeMotion = () => { completions++; view.nativeMotion = null; };
+  assert.equal(view.advanceCamera(2000), true);
+  assert.equal(view.advanceCamera(3200), false);
+  assert.equal(completions, 1);
+});
+test('terrain preparation recovers when tiles arrive without an idle event', () => {
+  const { view } = transitionFixture();
+  view.map.queryTerrainElevation = () => null;
+  view.setProgress(.3);
+  assert.equal(view.preparingFollow, true);
+  assert.equal(view.advanceCamera(100), true);
+  view.map.queryTerrainElevation = () => 1000;
+  view.advanceCamera(400);
+  assert.equal(view.preparingFollow, false);
+  assert.ok(view.entry);
+  view.advanceCamera(view.entry.startedAt + view.entry.duration);
+  assert.equal(view.following, true);
 });
