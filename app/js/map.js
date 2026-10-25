@@ -12,8 +12,8 @@ function svgNode(tag, attributes, text) {
 }
 
 export class JourneyMap {
-  constructor({ stages, routes, onStop, onStatus }) {
-    Object.assign(this, { stages, routes, onStop, onStatus });
+  constructor({ stages, routes, onStop, onStatus, onExplore = () => {} }) {
+    Object.assign(this, { stages, routes, onStop, onStatus, onExplore });
     this.map = null; this.ready = false; this.stageIndex = 0; this.progress = 0; this.markers = []; this.exploring = false;
     this.container = document.getElementById('schematic');
     this.buildSchematic();
@@ -71,6 +71,9 @@ export class JourneyMap {
       window.mapboxgl.maxParallelImageRequests = 4;
       const map = new window.mapboxgl.Map({ container: 'map', accessToken: token, style: 'mapbox://styles/mapbox/standard-satellite', center: [11.48, 47.7], zoom: 8, pitch: 55, bearing: 0, antialias: true, attributionControl: true, minTileCacheSize: 64, maxTileCacheSize: 256, transformRequest: createTileRequestGate() });
       this.map = map;
+      map.on('movestart', event => {
+        if (map === this.map) this.handleUserNavigation(event);
+      });
       map.addControl(new window.mapboxgl.NavigationControl({ showCompass: true }), 'bottom-right');
       map.on('load', () => {
         if (map !== this.map) return;
@@ -129,12 +132,12 @@ export class JourneyMap {
     });
     this.setProgress(0, false); this.flyToRoutePoint(0);
   }
-  cancelCameraMotion() {
+  cancelCameraMotion(stopMap = true) {
     this.motionVersion = (this.motionVersion || 0) + 1;
     if (this.nativeMotion) this.map?.off?.('moveend', this.nativeMotion);
     this.nativeMotion = null; this.entry = null; this.followRequested = false;
     this.preparingFollow = false; this.waitingForTerrain = false; this.following = false;
-    this.map?.stop();
+    if (stopMap) this.map?.stop();
   }
   pauseCamera() {
     this.followRequested = false;
@@ -193,13 +196,23 @@ export class JourneyMap {
     const bounds = points.reduce((b, p) => b.extend(p), new window.mapboxgl.LngLatBounds(points[0], points[0]));
     this.animateNavigation(() => this.map.fitBounds(bounds, { padding: { top: 80, bottom: 190, left: 50, right: 50 }, pitch: 35, duration: this.reducedMotion() ? 0 : 2600 }));
   }
-  setExplore(exploring) {
+  handleUserNavigation(event) {
+    // SDK camera animations also emit movestart; only gestures take over the tour.
+    if (!this.ready || this.exploring || !event.originalEvent) return;
+    this.setExplore(true, { userGesture: true });
+    this.onExplore();
+  }
+  setExplore(exploring, { userGesture = false } = {}) {
     this.exploring = exploring;
     if (!this.map || this.appliedExplore === exploring) return;
-    if (this.appliedExplore !== null) this.cancelCameraMotion();
+    // Mapbox already interrupts its animation on a gesture. stop() here would
+    // also reset the wheel/drag gesture that is taking control.
+    if (this.appliedExplore !== null) this.cancelCameraMotion(!userGesture);
     this.appliedExplore = exploring;
-    for (const key of ['scrollZoom', 'boxZoom', 'dragRotate', 'dragPan', 'keyboard', 'doubleClickZoom', 'touchZoomRotate']) this.map[key]?.[exploring ? 'enable' : 'disable']();
-    if (exploring && this.ready) this.fitStage();
+    // Keep gestures available during the tour so the first gesture can take over.
+    for (const key of ['scrollZoom', 'boxZoom', 'dragRotate', 'dragPan', 'doubleClickZoom', 'touchZoomRotate', 'touchPitch']) this.map[key]?.enable();
+    // Presentation shortcuts use arrow keys; let Mapbox use them only in explore mode.
+    this.map.keyboard?.[exploring ? 'enable' : 'disable']();
   }
   reducedMotion() { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
   setProgress(progress, follow = true, delta = 1 / 60) {

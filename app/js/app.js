@@ -176,7 +176,10 @@ async function init() {
     return prepareRoute(geometry.coordinates);
   }));
   routes = routeResults;
-  map = new JourneyMap({ stages: journey.stages, routes, onStop: stop => player.openStop(stop), onStatus: mapStatus });
+  map = new JourneyMap({ stages: journey.stages, routes, onStop: stop => player.openStop(stop), onStatus: mapStatus, onExplore: () => {
+    player.setMode('explore');
+    announce('Frei erkunden. Der Flug pausiert. Mit Präsentieren zur geführten Kamera zurückkehren.');
+  } });
   player = new TourPlayer(journey.stages, render);
   buildNavigation();
   $('demo-label').hidden = !journey.demo;
@@ -228,6 +231,7 @@ async function init() {
       return;
     }
     if (dialogs.some(d => d.open)) return;
+    if (player.state.mode === 'explore' && event.target.closest('#map') && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', '+', '=', '-'].includes(event.key)) return;
     if (['BUTTON', 'A'].includes(event.target.tagName) && event.code === 'Space') return;
     if (event.code === 'Space') { event.preventDefault(); player.toggle(); }
     else if (event.key === 'ArrowRight') { event.preventDefault(); player.next(); }

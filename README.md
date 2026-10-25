@@ -57,7 +57,12 @@ Die Struktur ist auf beliebig viele Etappen vorbereitet. Alle 27 persönlichen R
 | Vollbild | Schaltfläche oben rechts oder `F` |
 | Etappe überspringen | Etappe links auswählen |
 | Gesamte Strecke einrahmen | „Übersicht“ |
-| Frei navigieren | „Erkunden“; mit „Präsentieren“ zum gespeicherten Stand zurück |
+| Frei navigieren | Karte mit der Maus steuern oder „Erkunden“ wählen; der Flug pausiert. Mit „Präsentieren“ zum gespeicherten Stand zurück |
+| Karte zoomen | Mausrad / Trackpad scrollen oder Doppelklick; Umschalt + Doppelklick zoomt heraus |
+| Karte verschieben | Linke Maustaste halten und ziehen |
+| Kamera drehen / neigen | Rechte Maustaste halten und seitlich / nach oben oder unten ziehen |
+
+Die Maussteuerung gilt für die verbundene Mapbox-Karte. Beim ersten Zoom oder Ziehen wechselt die App ohne neuen Anflug ins Erkunden und hält den Präsentationsstand fest. „Präsentieren“ führt die Kamera zum gespeicherten Stand zurück; ▶ setzt den Flug fort. Automatische Kamerafahrten lösen diesen Wechsel nicht aus.
 
 An Fotostopps und am Ende einer Etappe pausiert der Flug. Nach dem letzten Tag startet Play die Reise erneut. Beim Wechsel in einen anderen Browser-Tab wird der Flug pausiert. Im Vollbild bleiben die Quellenangaben sichtbar. Auf schmalen Bildschirmen steht die Etappenliste unter der Karte.
 

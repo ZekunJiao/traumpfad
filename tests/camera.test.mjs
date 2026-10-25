@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { JourneyMap } from '../app/js/map.js';
 import { prepareRoute } from '../app/js/route.js';
+import { TourPlayer } from '../app/js/player.js';
 
 function cameraFixture(elevations) {
   let altitude, updates = 0, queries = 0, retry;
@@ -85,4 +86,67 @@ test('a cancelled navigation cannot finish a later stage transition', () => {
   assert.equal(view.nativeMotion, currentFinish);
   currentFinish();
   assert.equal(view.nativeMotion, null);
+});
+
+function manualNavigationFixture() {
+  const { view, stats } = transitionFixture();
+  const enabled = new Set();
+  for (const key of ['scrollZoom', 'boxZoom', 'dragRotate', 'dragPan', 'keyboard', 'doubleClickZoom', 'touchZoomRotate', 'touchPitch']) {
+    view.map[key] = { enable: () => enabled.add(key), disable: () => enabled.delete(key) };
+  }
+  view.appliedExplore = null;
+  view.fitStage = () => assert.fail('manual takeover must not reframe the map');
+  const player = new TourPlayer([{ id: 'one', durationSeconds: 10, stops: [] }], state => {
+    view.setExplore(state.mode === 'explore');
+    view.setProgress(state.progress, state.mode === 'presentation' && state.started);
+  });
+  let takeovers = 0;
+  view.onExplore = () => { takeovers++; player.setMode('explore'); };
+  view.setExplore(false);
+  return { view, player, stats, enabled, takeovers: () => takeovers };
+}
+test('presentation keeps mouse and touch gestures available without stealing tour arrow shortcuts', () => {
+  const { enabled } = manualNavigationFixture();
+  for (const gesture of ['scrollZoom', 'dragPan', 'dragRotate', 'doubleClickZoom', 'touchZoomRotate', 'touchPitch']) assert.ok(enabled.has(gesture));
+  assert.equal(enabled.has('keyboard'), false);
+});
+test('automatic camera movements do not interrupt the presentation', () => {
+  const { view, player, takeovers } = manualNavigationFixture();
+  player.play();
+  const entry = view.entry;
+  view.handleUserNavigation({ type: 'movestart' });
+  assert.equal(takeovers(), 0);
+  assert.equal(player.state.mode, 'presentation');
+  assert.equal(player.state.status, 'playing');
+  assert.equal(view.entry, entry);
+});
+test('a gesture cancels camera flight, freezes progress, and allows return from the visible pose', () => {
+  const { view, player, stats, takeovers } = manualNavigationFixture();
+  player.play();
+  const entry = view.entry;
+  view.advanceCamera(entry.startedAt + 700);
+  const visible = stats().pose;
+  view.map.stop = () => assert.fail('takeover must not cancel the active mouse gesture');
+  const gesture = { type: 'movestart', originalEvent: { type: 'wheel' } };
+  view.handleUserNavigation(gesture);
+  view.handleUserNavigation(gesture);
+  assert.equal(takeovers(), 1);
+  assert.equal(view.entry, null);
+  assert.equal(player.state.mode, 'explore');
+  assert.equal(player.state.status, 'paused');
+  const progress = player.state.progress, updates = stats().updates;
+  player.tick(5);
+  view.advanceCamera(entry.startedAt + 3000);
+  assert.equal(player.state.progress, progress);
+  assert.equal(stats().updates, updates);
+  assert.deepEqual(stats().pose, visible);
+  view.map.stop = () => {};
+  player.setMode('presentation');
+  assert.equal(player.state.progress, progress);
+  assert.equal(player.state.status, 'paused');
+  assert.deepEqual(view.entry.from, visible);
+  view.advanceCamera(view.entry.startedAt + view.entry.duration);
+  player.play(); player.tick(.5);
+  assert.equal(player.state.status, 'playing');
+  assert.ok(player.state.progress > progress);
 });
