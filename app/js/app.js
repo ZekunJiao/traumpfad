@@ -6,7 +6,7 @@ import { readBrowserMapCache, describeBrowserMapCache } from './browser-cache.js
 
 const $ = id => document.getElementById(id);
 const text = (id, value) => { $(id).textContent = value ?? ''; };
-const formatDay = stage => `TAG ${String(stage.day).padStart(2, '0')}`;
+const formatDay = stage => stage.isFullRoute ? 'GESAMTSTRECKE' : `${stage.referenceSection ? 'ABSCHNITT' : 'TAG'} ${String(stage.day).padStart(2, '0')}`;
 const formatDate = value => value ? new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'long', timeZone: 'Europe/Berlin' }).format(new Date(value + 'T12:00:00')) : 'Datum noch offen';
 const dialogs = [...document.querySelectorAll('dialog')];
 let journey, player, map, routes, currentPhotoIds = [], currentPhotoIndex = 0, currentStop = null, galleryContext = false, lastStage = -1, renderStatus = '', lastFrame = 0, noticeTimer;
@@ -56,8 +56,8 @@ function buildStageList() {
     if (chapter && !chapter.stageIds.includes(stage.id)) return;
     const button = element('button', 'stage-button'); button.dataset.stage = index;
     const label = element('span');
-    label.append(element('span', 'stage-name', stage.end), element('span', 'stage-sub', `${stage.date ? formatDate(stage.date) : 'Etappenbeispiel'} · ${stage.start}`));
-    button.append(element('span', 'stage-number', String(stage.day).padStart(2, '0')), label);
+    label.append(element('span', 'stage-name', stage.end), element('span', 'stage-sub', `${stage.date ? formatDate(stage.date) : stage.referenceSection ? 'GPX-Referenz' : 'Etappenbeispiel'} · ${stage.start}`));
+    button.append(element('span', 'stage-number', stage.isFullRoute ? '∞' : String(stage.day).padStart(2, '0')), label);
     button.setAttribute('aria-current', String(index === player?.state.stageIndex));
     button.addEventListener('click', () => { closeDialogs(); player.selectStage(index); if (matchMedia('(max-width: 760px)').matches) $('main').scrollIntoView({ behavior: 'smooth' }); });
     $('stage-list').append(button);
@@ -67,13 +67,16 @@ function render(state, reason) {
   const stage = player.stage;
   if (lastStage !== state.stageIndex || reason === 'stage') {
     lastStage = state.stageIndex; map.setStage(state.stageIndex);
-    text('stage-kicker', `${formatDay(stage)} · ${stage.date ? formatDate(stage.date) : 'BEISPIELETAPPE'}`);
+    text('stage-kicker', `${formatDay(stage)} · ${stage.date ? formatDate(stage.date) : stage.referenceSection ? 'GPX-REFERENZ' : 'BEISPIELETAPPE'}`);
     text('stage-title', stage.title); text('stage-description', stage.description);
-    $('stage-facts').replaceChildren(element('span', '', stage.overnight ? `Übernachtung: ${stage.overnight}` : 'Schlafplatz noch ergänzen'), element('span', '', `${sortedPhotos(stage.id).filter(p => !p.placeholder).length} eigene Fotos`));
+    $('stage-facts').replaceChildren(...(stage.isFullRoute
+      ? [element('span', '', `${(routes[state.stageIndex].length / 1000).toFixed(1).replace('.', ',')} km`), element('span', '', `${routes[state.stageIndex].points.length.toLocaleString('de-DE')} Trackpunkte`)]
+      : [element('span', '', stage.overnight ? `Übernachtung: ${stage.overnight}` : 'Schlafplatz noch ergänzen'), element('span', '', `${sortedPhotos(stage.id).filter(p => !p.placeholder).length} eigene Fotos`)]));
+    $('gallery-button').hidden = Boolean(stage.isFullRoute);
     text('player-kicker', `${formatDay(stage)} · ${stage.start.toLocaleUpperCase('de')}`);
     text('player-title', stage.title);
     text('player-time', `${String(state.stageIndex + 1).padStart(2, '0')} / ${String(journey.stages.length).padStart(2, '0')}`);
-    text('route-caption', stage.routeProvenance?.kind === 'schematic' ? 'Schematischer Beispielverlauf · keine tatsächliche Wanderaufzeichnung' : stage.routeProvenance?.kind === 'recorded' ? 'Route aus bereitgestellter GPS-Aufzeichnung' : 'Rekonstruierter Verlauf · anhand deiner Etappen abzugleichen');
+    text('route-caption', stage.routeProvenance?.kind === 'schematic' ? 'Schematischer Beispielverlauf · keine tatsächliche Wanderaufzeichnung' : stage.routeProvenance?.kind === 'recorded' ? 'Route aus bereitgestellter GPS-Aufzeichnung' : stage.referenceSection ? 'GPX: Björn Mußmann / Outdooractive · Referenzvariante' : 'Rekonstruierter Verlauf · anhand deiner Etappen abzugleichen');
     preloadNext();
   }
   $('route-progress').value = String(Math.round(state.progress * 1000));
@@ -183,7 +186,7 @@ async function init() {
   player = new TourPlayer(journey.stages, render);
   buildNavigation();
   $('demo-label').hidden = !journey.demo;
-  $('cover-note').textContent = journey.demo ? 'Beispieletappen und Bildplätze · deine Erinnerungen folgen.' : 'Deine Etappen. Deine Bilder. Dein Tempo.';
+  $('cover-note').textContent = journey.routeDownload ? 'GPX-Gesamtstrecke geladen · deine 27 Tagesetappen und Bilder folgen.' : journey.demo ? 'Beispieletappen und Bildplätze · deine Erinnerungen folgen.' : 'Deine Etappen. Deine Bilder. Dein Tempo.';
   text('cover-title', journey.title); $('cover-title').style.whiteSpace = 'pre-line'; $('cover-title').textContent = journey.title.replace(' Ein ', '\nEin ');
   const total = document.querySelector('.trip-total-number'); total.textContent = journey.totalDays;
   const config = configResponse.ok ? await configResponse.json() : {};

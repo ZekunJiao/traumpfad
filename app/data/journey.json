@@ -5,64 +5,453 @@
   "totalDays": 27,
   "timezone": "Europe/Berlin",
   "demo": true,
-  "chapters": [{ "id": "woche-01", "title": "01 · Die erste Woche", "stageIds": ["tag-01", "tag-02", "tag-03", "tag-04", "tag-05", "tag-06", "tag-07"] }],
+  "chapters": [
+    {
+      "id": "gesamt",
+      "title": "Gesamtstrecke · München–Venedig",
+      "stageIds": [
+        "gesamtstrecke"
+      ]
+    },
+    {
+      "id": "woche-01",
+      "title": "Erste Abschnitte · GPX-Referenz",
+      "stageIds": [
+        "tag-01",
+        "tag-02",
+        "tag-03",
+        "tag-04",
+        "tag-05",
+        "tag-06",
+        "tag-07"
+      ]
+    }
+  ],
   "stories": {
     "preparation": {
       "kicker": "VOR DEM ERSTEN SCHRITT",
       "title": "Wie alles begann.",
       "sections": [
-        { "title": "Die Idee", "text": "Hier ist Platz für deinen Antrieb: Warum wolltest du zu Fuß über die Alpen? Was hast du dir von den 27 Tagen erhofft?" },
-        { "title": "Was mitmusste", "text": "Dein Rucksack, deine besten Anschaffungen und das, was du beim nächsten Mal zu Hause lassen würdest. Ergänze deine eigenen Erfahrungen und Bilder." },
-        { "title": "Die Vorbereitung", "text": "Training, Hüttenbuchungen, Zeltnächte und die ersten Schritte der Planung. Diese Texte sind als Platzhalter gedacht." }
+        {
+          "title": "Die Idee",
+          "text": "Hier ist Platz für deinen Antrieb: Warum wolltest du zu Fuß über die Alpen? Was hast du dir von den 27 Tagen erhofft?"
+        },
+        {
+          "title": "Was mitmusste",
+          "text": "Dein Rucksack, deine besten Anschaffungen und das, was du beim nächsten Mal zu Hause lassen würdest. Ergänze deine eigenen Erfahrungen und Bilder."
+        },
+        {
+          "title": "Die Vorbereitung",
+          "text": "Training, Hüttenbuchungen, Zeltnächte und die ersten Schritte der Planung. Diese Texte sind als Platzhalter gedacht."
+        }
       ]
     },
     "conclusion": {
       "kicker": "WAS VON DER REISE BLEIBT",
       "title": "Angekommen. Und verändert?",
       "sections": [
-        { "title": "Der letzte Tag", "text": "Dein Ankunftsfoto und das Gefühl, nach 27 Tagen am Ziel zu stehen, bekommen hier ihren Platz." },
-        { "title": "Die Menschen unterwegs", "text": "Erzähle von Begegnungen, gemeinsamen Wegen und den Freundschaften, die du mitgenommen hast." },
-        { "title": "Was ich heute anders machen würde", "text": "Dein persönlicher Rückblick auf Gewitter, Schiara und Vorbereitung. Ergänze hier deine tatsächlichen Erlebnisse." }
+        {
+          "title": "Der letzte Tag",
+          "text": "Dein Ankunftsfoto und das Gefühl, nach 27 Tagen am Ziel zu stehen, bekommen hier ihren Platz."
+        },
+        {
+          "title": "Die Menschen unterwegs",
+          "text": "Erzähle von Begegnungen, gemeinsamen Wegen und den Freundschaften, die du mitgenommen hast."
+        },
+        {
+          "title": "Was ich heute anders machen würde",
+          "text": "Dein persönlicher Rückblick auf Gewitter, Schiara und Vorbereitung. Ergänze hier deine tatsächlichen Erlebnisse."
+        }
       ]
     }
   },
   "stages": [
-    { "id": "tag-01", "day": 1, "date": null, "title": "München → Wolfratshausen", "start": "München", "end": "Wolfratshausen", "description": "Raus aus der Stadt, hinein in die Reise. Ein Beispielkapitel für die ersten Schritte Richtung Süden.", "overnight": null, "routeFile": "routes/tag-01.geojson", "routeProvenance": { "kind": "schematic", "note": "Beispieletappe mit schematischem Verlauf. Deine tatsächliche Route und das Datum folgen." }, "durationSeconds": 55, "stops": [
-      { "id": "stopp-01", "progress": 0.08, "title": "Der erste Schritt", "approximate": true, "caption": "Hier könntest du dein Startfoto zeigen und erzählen, mit welchem Gefühl du losgegangen bist. Beispiel-Fotostopp, noch kein tatsächlicher Aufnahmeort.", "photoIds": ["demo-01"] },
-      { "id": "stopp-02", "progress": 0.66, "title": "Unterwegs sein", "approximate": true, "caption": "Ein Platz für die erste Pause, den Blick zurück oder eine kleine Begegnung. Ort und Bilder ergänzen wir gemeinsam.", "photoIds": ["demo-02"] }
-    ] },
-    { "id": "tag-02", "day": 2, "date": null, "title": "Wolfratshausen → Bad Tölz", "start": "Wolfratshausen", "end": "Bad Tölz", "description": "Die Gedanken werden langsamer, der Weg wird zum Alltag. Hier entsteht deine zweite Tagesgeschichte.", "overnight": null, "routeFile": "routes/tag-02.geojson", "routeProvenance": { "kind": "schematic", "note": "Schematische Beispieletappe; nicht als Navigation verwenden." }, "durationSeconds": 50, "stops": [
-      { "id": "stopp-03", "progress": 0.55, "title": "Ein Tag im Gehen", "approximate": true, "caption": "Dein Foto und deine Erinnerung an diesen Tag kommen hierhin.", "photoIds": ["demo-03"] }
-    ] },
-    { "id": "tag-03", "day": 3, "date": null, "title": "Bad Tölz → Tutzinger Hütte", "start": "Bad Tölz", "end": "Tutzinger Hütte", "description": "Das Alpenvorland geht in die Berge über. Diese Etappe ist ein Beispiel für die räumliche Darstellung eines Aufstiegs.", "overnight": null, "routeFile": "routes/tag-03.geojson", "routeProvenance": { "kind": "schematic", "note": "Schematische Verbindung von Orten; keine überprüfte Wanderstrecke." }, "durationSeconds": 65, "stops": [
-      { "id": "stopp-04", "progress": 0.47, "title": "Die Berge rücken näher", "approximate": true, "caption": "Zeit für einen ersten großen Ausblick und deine Geschichte dazu.", "photoIds": ["demo-04"] },
-      { "id": "stopp-05", "progress": 0.96, "title": "Ankommen für heute", "approximate": true, "caption": "Hüttenabend, Zelt oder ein anderer Schlafplatz: Hier ergänzen wir deine tatsächliche Übernachtung.", "photoIds": ["demo-05"] }
-    ] },
-    { "id": "tag-04", "day": 4, "date": null, "title": "Tutzinger Hütte → Vorderriß", "start": "Tutzinger Hütte", "end": "Vorderriß", "description": "Ein Beispieltag zwischen Bergpfaden und Tal. Deine Tagesetappen dürfen von dieser Einteilung abweichen.", "overnight": null, "routeFile": "routes/tag-04.geojson", "routeProvenance": { "kind": "schematic", "note": "Schematische Beispieletappe; tatsächliche Übergänge noch offen." }, "durationSeconds": 55, "stops": [
-      { "id": "stopp-06", "progress": 0.5, "title": "Ein Moment zum Innehalten", "approximate": true, "caption": "Manchmal reicht ein einzelnes Bild, um sich wieder an einen ganzen Tag zu erinnern.", "photoIds": ["demo-06"] }
-    ] },
-    { "id": "tag-05", "day": 5, "date": null, "title": "Vorderriß → Karwendelhaus", "start": "Vorderriß", "end": "Karwendelhaus", "description": "Mitten hinein ins Karwendel. Ein Beispielkapitel für weite Täler und die erste Woche in den Bergen.", "overnight": null, "routeFile": "routes/tag-05.geojson", "routeProvenance": { "kind": "schematic", "note": "Schematischer Beispielverlauf; genaue Wegführung wird mit dir abgestimmt." }, "durationSeconds": 65, "stops": [
-      { "id": "stopp-07", "progress": 0.64, "title": "Im Karwendel", "approximate": true, "caption": "Hier bekommt eines deiner Landschaftsbilder Raum. Der Flug hält an, bis du weitererzählst.", "photoIds": ["demo-07"] }
-    ] },
-    { "id": "tag-06", "day": 6, "date": null, "title": "Karwendelhaus → Hallerangerhaus", "start": "Karwendelhaus", "end": "Hallerangerhaus", "description": "Ein Beispiel für einen Tag mit großen Bergkulissen. Gewählte Übergänge und Varianten tragen wir anhand deiner Angaben ein.", "overnight": null, "routeFile": "routes/tag-06.geojson", "routeProvenance": { "kind": "schematic", "note": "Schematische Beispieldaten, ausdrücklich keine begehbare Routenvorgabe." }, "durationSeconds": 65, "stops": [
-      { "id": "stopp-08", "progress": 0.35, "title": "Ein besonderer Übergang", "approximate": true, "caption": "Ein Fotostopp kann auch mehrere Bilder enthalten. Die ungefähre Position legen wir später gemeinsam fest.", "photoIds": ["demo-08", "demo-09"] }
-    ] },
-    { "id": "tag-07", "day": 7, "date": null, "title": "Hallerangerhaus → Hall in Tirol", "start": "Hallerangerhaus", "end": "Hall in Tirol", "description": "Die erste Woche findet ihren Abschluss. Von hier lässt sich die Reise später in Richtung Tuxer Gebirge fortsetzen.", "overnight": null, "routeFile": "routes/tag-07.geojson", "routeProvenance": { "kind": "schematic", "note": "Schematischer Beispielverlauf. Alle tatsächlichen Etappen werden noch abgeglichen." }, "durationSeconds": 55, "stops": [
-      { "id": "stopp-09", "progress": 0.42, "title": "Der Blick ins Tal", "approximate": true, "caption": "Ein Ort für dein Lieblingsbild vom Abstieg oder eine Geschichte vom Weg.", "photoIds": ["demo-10"] },
-      { "id": "stopp-10", "progress": 0.97, "title": "Eine Woche unterwegs", "approximate": true, "caption": "Wie hat sich das Unterwegssein inzwischen angefühlt? Hier endet das erste Beispielkapitel.", "photoIds": ["demo-11"] }
-    ] }
+    {
+      "id": "gesamtstrecke",
+      "day": 0,
+      "referenceSection": true,
+      "isFullRoute": true,
+      "date": null,
+      "title": "München → Venedig",
+      "start": "Marienplatz, München",
+      "end": "Markusplatz, Venedig",
+      "description": "Der veröffentlichte Traumpfad-Gesamttrack mit 35.524 Punkten und rund 545 km. Referenzvariante mit Fährüberfahrt nach Venedig; noch nicht auf deine 27 Reisetage aufgeteilt. Bei Sottoguda enthält die Quelle einen rund 1,36 km langen Abschnitt mit ungenauer Wegführung.",
+      "overnight": null,
+      "routeFile": "routes/gesamtstrecke.geojson",
+      "routeProvenance": {
+        "kind": "reconstructed",
+        "source": "traumpfad-muenchen-venedig.gpx",
+        "url": "https://fastestknowntime.com/route/traumpfad-munchen-venedig-germany-austria-italy",
+        "author": "Björn Mußmann – Outdooractive Community",
+        "originalUrl": "https://www.outdooractive.com/r/104193538",
+        "downloadedAt": "2026-10-25",
+        "note": "Veröffentlichter GPX-Referenztrack (2018), rund 545 km. Enthält Varianten und Fährüberfahrt nach Venedig. Keine persönliche GPS-Aufzeichnung. Ein rund 1,36 km langer Abschnitt bei 11.906 / 46.435 ist nur durch seine Endpunkte beschrieben; dort ist die Wegführung ungenau."
+      },
+      "durationSeconds": 1200,
+      "stops": []
+    },
+    {
+      "id": "tag-01",
+      "day": 1,
+      "date": null,
+      "title": "München → Wolfratshausen",
+      "start": "München",
+      "end": "Wolfratshausen",
+      "description": "GPX-Referenzabschnitt von München nach Wolfratshausen. Die Weglinie stammt aus dem veröffentlichten Gesamttrack. Deine Tagesgrenzen und Fotostopps sind noch abzugleichen.",
+      "overnight": null,
+      "routeFile": "routes/tag-01.geojson",
+      "routeProvenance": {
+        "kind": "reconstructed",
+        "source": "traumpfad-muenchen-venedig.gpx",
+        "url": "https://fastestknowntime.com/route/traumpfad-munchen-venedig-germany-austria-italy",
+        "author": "Björn Mußmann – Outdooractive Community",
+        "originalUrl": "https://www.outdooractive.com/r/104193538",
+        "downloadedAt": "2026-10-25",
+        "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Etappengrenzen am Track angenähert; persönliche Tagesaufteilung und Fotostopps noch abgleichen.",
+        "startPointIndex": 0,
+        "endPointIndex": 1546
+      },
+      "durationSeconds": 55,
+      "stops": [
+        {
+          "id": "stopp-01",
+          "progress": 0.08,
+          "title": "Der erste Schritt",
+          "approximate": true,
+          "caption": "Hier könntest du dein Startfoto zeigen und erzählen, mit welchem Gefühl du losgegangen bist. Beispiel-Fotostopp, noch kein tatsächlicher Aufnahmeort.",
+          "photoIds": [
+            "demo-01"
+          ]
+        },
+        {
+          "id": "stopp-02",
+          "progress": 0.66,
+          "title": "Unterwegs sein",
+          "approximate": true,
+          "caption": "Ein Platz für die erste Pause, den Blick zurück oder eine kleine Begegnung. Ort und Bilder ergänzen wir gemeinsam.",
+          "photoIds": [
+            "demo-02"
+          ]
+        }
+      ],
+      "referenceSection": true
+    },
+    {
+      "id": "tag-02",
+      "day": 2,
+      "date": null,
+      "title": "Wolfratshausen → Bad Tölz",
+      "start": "Wolfratshausen",
+      "end": "Bad Tölz",
+      "description": "GPX-Referenzabschnitt von Wolfratshausen nach Bad Tölz. Die Weglinie stammt aus dem veröffentlichten Gesamttrack. Deine Tagesgrenzen und Fotostopps sind noch abzugleichen.",
+      "overnight": null,
+      "routeFile": "routes/tag-02.geojson",
+      "routeProvenance": {
+        "kind": "reconstructed",
+        "source": "traumpfad-muenchen-venedig.gpx",
+        "url": "https://fastestknowntime.com/route/traumpfad-munchen-venedig-germany-austria-italy",
+        "author": "Björn Mußmann – Outdooractive Community",
+        "originalUrl": "https://www.outdooractive.com/r/104193538",
+        "downloadedAt": "2026-10-25",
+        "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Etappengrenzen am Track angenähert; persönliche Tagesaufteilung und Fotostopps noch abgleichen.",
+        "startPointIndex": 1546,
+        "endPointIndex": 2801
+      },
+      "durationSeconds": 50,
+      "stops": [
+        {
+          "id": "stopp-03",
+          "progress": 0.55,
+          "title": "Ein Tag im Gehen",
+          "approximate": true,
+          "caption": "Dein Foto und deine Erinnerung an diesen Tag kommen hierhin.",
+          "photoIds": [
+            "demo-03"
+          ]
+        }
+      ],
+      "referenceSection": true
+    },
+    {
+      "id": "tag-03",
+      "day": 3,
+      "date": null,
+      "title": "Bad Tölz → Tutzinger Hütte",
+      "start": "Bad Tölz",
+      "end": "Tutzinger Hütte",
+      "description": "GPX-Referenzabschnitt von Bad Tölz nach Tutzinger Hütte. Die Weglinie stammt aus dem veröffentlichten Gesamttrack. Deine Tagesgrenzen und Fotostopps sind noch abzugleichen.",
+      "overnight": null,
+      "routeFile": "routes/tag-03.geojson",
+      "routeProvenance": {
+        "kind": "reconstructed",
+        "source": "traumpfad-muenchen-venedig.gpx",
+        "url": "https://fastestknowntime.com/route/traumpfad-munchen-venedig-germany-austria-italy",
+        "author": "Björn Mußmann – Outdooractive Community",
+        "originalUrl": "https://www.outdooractive.com/r/104193538",
+        "downloadedAt": "2026-10-25",
+        "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Etappengrenzen am Track angenähert; persönliche Tagesaufteilung und Fotostopps noch abgleichen.",
+        "startPointIndex": 2801,
+        "endPointIndex": 3768
+      },
+      "durationSeconds": 65,
+      "stops": [
+        {
+          "id": "stopp-04",
+          "progress": 0.47,
+          "title": "Die Berge rücken näher",
+          "approximate": true,
+          "caption": "Zeit für einen ersten großen Ausblick und deine Geschichte dazu.",
+          "photoIds": [
+            "demo-04"
+          ]
+        },
+        {
+          "id": "stopp-05",
+          "progress": 0.96,
+          "title": "Ankommen für heute",
+          "approximate": true,
+          "caption": "Hüttenabend, Zelt oder ein anderer Schlafplatz: Hier ergänzen wir deine tatsächliche Übernachtung.",
+          "photoIds": [
+            "demo-05"
+          ]
+        }
+      ],
+      "referenceSection": true
+    },
+    {
+      "id": "tag-04",
+      "day": 4,
+      "date": null,
+      "title": "Tutzinger Hütte → Vorderriß",
+      "start": "Tutzinger Hütte",
+      "end": "Vorderriß",
+      "description": "GPX-Referenzabschnitt von Tutzinger Hütte nach Vorderriß. Die Weglinie stammt aus dem veröffentlichten Gesamttrack. Deine Tagesgrenzen und Fotostopps sind noch abzugleichen.",
+      "overnight": null,
+      "routeFile": "routes/tag-04.geojson",
+      "routeProvenance": {
+        "kind": "reconstructed",
+        "source": "traumpfad-muenchen-venedig.gpx",
+        "url": "https://fastestknowntime.com/route/traumpfad-munchen-venedig-germany-austria-italy",
+        "author": "Björn Mußmann – Outdooractive Community",
+        "originalUrl": "https://www.outdooractive.com/r/104193538",
+        "downloadedAt": "2026-10-25",
+        "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Etappengrenzen am Track angenähert; persönliche Tagesaufteilung und Fotostopps noch abgleichen.",
+        "startPointIndex": 3768,
+        "endPointIndex": 4724
+      },
+      "durationSeconds": 55,
+      "stops": [
+        {
+          "id": "stopp-06",
+          "progress": 0.5,
+          "title": "Ein Moment zum Innehalten",
+          "approximate": true,
+          "caption": "Manchmal reicht ein einzelnes Bild, um sich wieder an einen ganzen Tag zu erinnern.",
+          "photoIds": [
+            "demo-06"
+          ]
+        }
+      ],
+      "referenceSection": true
+    },
+    {
+      "id": "tag-05",
+      "day": 5,
+      "date": null,
+      "title": "Vorderriß → Karwendelhaus",
+      "start": "Vorderriß",
+      "end": "Karwendelhaus",
+      "description": "GPX-Referenzabschnitt von Vorderriß nach Karwendelhaus. Die Weglinie stammt aus dem veröffentlichten Gesamttrack. Deine Tagesgrenzen und Fotostopps sind noch abzugleichen.",
+      "overnight": null,
+      "routeFile": "routes/tag-05.geojson",
+      "routeProvenance": {
+        "kind": "reconstructed",
+        "source": "traumpfad-muenchen-venedig.gpx",
+        "url": "https://fastestknowntime.com/route/traumpfad-munchen-venedig-germany-austria-italy",
+        "author": "Björn Mußmann – Outdooractive Community",
+        "originalUrl": "https://www.outdooractive.com/r/104193538",
+        "downloadedAt": "2026-10-25",
+        "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Etappengrenzen am Track angenähert; persönliche Tagesaufteilung und Fotostopps noch abgleichen.",
+        "startPointIndex": 4724,
+        "endPointIndex": 6096
+      },
+      "durationSeconds": 65,
+      "stops": [
+        {
+          "id": "stopp-07",
+          "progress": 0.64,
+          "title": "Im Karwendel",
+          "approximate": true,
+          "caption": "Hier bekommt eines deiner Landschaftsbilder Raum. Der Flug hält an, bis du weitererzählst.",
+          "photoIds": [
+            "demo-07"
+          ]
+        }
+      ],
+      "referenceSection": true
+    },
+    {
+      "id": "tag-06",
+      "day": 6,
+      "date": null,
+      "title": "Karwendelhaus → Hallerangerhaus",
+      "start": "Karwendelhaus",
+      "end": "Hallerangerhaus",
+      "description": "GPX-Referenzabschnitt von Karwendelhaus nach Hallerangerhaus. Die Weglinie stammt aus dem veröffentlichten Gesamttrack. Deine Tagesgrenzen und Fotostopps sind noch abzugleichen.",
+      "overnight": null,
+      "routeFile": "routes/tag-06.geojson",
+      "routeProvenance": {
+        "kind": "reconstructed",
+        "source": "traumpfad-muenchen-venedig.gpx",
+        "url": "https://fastestknowntime.com/route/traumpfad-munchen-venedig-germany-austria-italy",
+        "author": "Björn Mußmann – Outdooractive Community",
+        "originalUrl": "https://www.outdooractive.com/r/104193538",
+        "downloadedAt": "2026-10-25",
+        "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Etappengrenzen am Track angenähert; persönliche Tagesaufteilung und Fotostopps noch abgleichen.",
+        "startPointIndex": 6096,
+        "endPointIndex": 6931
+      },
+      "durationSeconds": 65,
+      "stops": [
+        {
+          "id": "stopp-08",
+          "progress": 0.35,
+          "title": "Ein besonderer Übergang",
+          "approximate": true,
+          "caption": "Ein Fotostopp kann auch mehrere Bilder enthalten. Die ungefähre Position legen wir später gemeinsam fest.",
+          "photoIds": [
+            "demo-08",
+            "demo-09"
+          ]
+        }
+      ],
+      "referenceSection": true
+    },
+    {
+      "id": "tag-07",
+      "day": 7,
+      "date": null,
+      "title": "Hallerangerhaus → Wattens",
+      "start": "Hallerangerhaus",
+      "end": "Wattens",
+      "description": "Abstieg ins Inntal und weiter nach Wattens gemäß GPX-Referenztrack. Dieser Track führt an Hall in Tirol vorbei; die bisherige schematische Verbindung nach Hall wurde ersetzt.",
+      "overnight": null,
+      "routeFile": "routes/tag-07.geojson",
+      "routeProvenance": {
+        "kind": "reconstructed",
+        "source": "traumpfad-muenchen-venedig.gpx",
+        "url": "https://fastestknowntime.com/route/traumpfad-munchen-venedig-germany-austria-italy",
+        "author": "Björn Mußmann – Outdooractive Community",
+        "originalUrl": "https://www.outdooractive.com/r/104193538",
+        "downloadedAt": "2026-10-25",
+        "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Etappengrenzen am Track angenähert; persönliche Tagesaufteilung und Fotostopps noch abgleichen.",
+        "startPointIndex": 6931,
+        "endPointIndex": 7890
+      },
+      "durationSeconds": 55,
+      "stops": [
+        {
+          "id": "stopp-09",
+          "progress": 0.42,
+          "title": "Der Blick ins Tal",
+          "approximate": true,
+          "caption": "Ein Ort für dein Lieblingsbild vom Abstieg oder eine Geschichte vom Weg.",
+          "photoIds": [
+            "demo-10"
+          ]
+        },
+        {
+          "id": "stopp-10",
+          "progress": 0.97,
+          "title": "Eine Woche unterwegs",
+          "approximate": true,
+          "caption": "Wie hat sich das Unterwegssein inzwischen angefühlt? Hier endet das erste Beispielkapitel.",
+          "photoIds": [
+            "demo-11"
+          ]
+        }
+      ],
+      "referenceSection": true
+    }
   ],
   "photos": [
-    { "id": "demo-01", "stageId": "tag-01", "placeholder": true, "title": "Dein Startfoto", "caption": "Noch kein persönliches Foto importiert." },
-    { "id": "demo-02", "stageId": "tag-01", "placeholder": true, "title": "Die ersten Kilometer", "caption": "Noch kein persönliches Foto importiert." },
-    { "id": "demo-03", "stageId": "tag-02", "placeholder": true, "title": "Ein Tag am Weg", "caption": "Noch kein persönliches Foto importiert." },
-    { "id": "demo-04", "stageId": "tag-03", "placeholder": true, "title": "Der erste Ausblick", "caption": "Noch kein persönliches Foto importiert." },
-    { "id": "demo-05", "stageId": "tag-03", "placeholder": true, "title": "Dein Schlafplatz", "caption": "Noch kein persönliches Foto importiert." },
-    { "id": "demo-06", "stageId": "tag-04", "placeholder": true, "title": "Kleine Erinnerungen", "caption": "Noch kein persönliches Foto importiert." },
-    { "id": "demo-07", "stageId": "tag-05", "placeholder": true, "title": "Mitten in den Bergen", "caption": "Noch kein persönliches Foto importiert." },
-    { "id": "demo-08", "stageId": "tag-06", "placeholder": true, "title": "Ein großer Bergtag", "caption": "Noch kein persönliches Foto importiert." },
-    { "id": "demo-09", "stageId": "tag-06", "placeholder": true, "title": "Der Blick zurück", "caption": "Noch kein persönliches Foto importiert." },
-    { "id": "demo-10", "stageId": "tag-07", "placeholder": true, "title": "Bald wieder im Tal", "caption": "Noch kein persönliches Foto importiert." },
-    { "id": "demo-11", "stageId": "tag-07", "placeholder": true, "title": "Deine erste Woche", "caption": "Noch kein persönliches Foto importiert." }
-  ]
+    {
+      "id": "demo-01",
+      "stageId": "tag-01",
+      "placeholder": true,
+      "title": "Dein Startfoto",
+      "caption": "Noch kein persönliches Foto importiert."
+    },
+    {
+      "id": "demo-02",
+      "stageId": "tag-01",
+      "placeholder": true,
+      "title": "Die ersten Kilometer",
+      "caption": "Noch kein persönliches Foto importiert."
+    },
+    {
+      "id": "demo-03",
+      "stageId": "tag-02",
+      "placeholder": true,
+      "title": "Ein Tag am Weg",
+      "caption": "Noch kein persönliches Foto importiert."
+    },
+    {
+      "id": "demo-04",
+      "stageId": "tag-03",
+      "placeholder": true,
+      "title": "Der erste Ausblick",
+      "caption": "Noch kein persönliches Foto importiert."
+    },
+    {
+      "id": "demo-05",
+      "stageId": "tag-03",
+      "placeholder": true,
+      "title": "Dein Schlafplatz",
+      "caption": "Noch kein persönliches Foto importiert."
+    },
+    {
+      "id": "demo-06",
+      "stageId": "tag-04",
+      "placeholder": true,
+      "title": "Kleine Erinnerungen",
+      "caption": "Noch kein persönliches Foto importiert."
+    },
+    {
+      "id": "demo-07",
+      "stageId": "tag-05",
+      "placeholder": true,
+      "title": "Mitten in den Bergen",
+      "caption": "Noch kein persönliches Foto importiert."
+    },
+    {
+      "id": "demo-08",
+      "stageId": "tag-06",
+      "placeholder": true,
+      "title": "Ein großer Bergtag",
+      "caption": "Noch kein persönliches Foto importiert."
+    },
+    {
+      "id": "demo-09",
+      "stageId": "tag-06",
+      "placeholder": true,
+      "title": "Der Blick zurück",
+      "caption": "Noch kein persönliches Foto importiert."
+    },
+    {
+      "id": "demo-10",
+      "stageId": "tag-07",
+      "placeholder": true,
+      "title": "Bald wieder im Tal",
+      "caption": "Noch kein persönliches Foto importiert."
+    },
+    {
+      "id": "demo-11",
+      "stageId": "tag-07",
+      "placeholder": true,
+      "title": "Deine erste Woche",
+      "caption": "Noch kein persönliches Foto importiert."
+    }
+  ],
+  "routeDownload": "data/routes/traumpfad-muenchen-venedig.gpx"
 }

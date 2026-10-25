@@ -40,13 +40,16 @@ export class JourneyMap {
     this.routes.forEach((route, i) => {
       const path = svgNode('path', { d: line(route.points), fill: 'none', stroke: '#e9ebce', 'stroke-width': '2', opacity: '.28', 'stroke-linejoin': 'round', 'stroke-linecap': 'round' });
       this.schemaPaths.push(path); svg.append(path);
+      if (this.stages[i].isFullRoute && this.routes.length > 1) return;
       const p = this.project(route.points[0]);
       svg.append(svgNode('circle', { cx: p[0], cy: p[1], r: 4, fill: '#dcdcc0', opacity: '.7' }));
       svg.append(svgNode('text', { x: p[0] + 12, y: p[1] + 4, class: 'schema-label' }, this.stages[i].start));
     });
-    const end = this.project(points.at(-1));
+    const fullRouteIndex = this.stages.findIndex(stage => stage.isFullRoute);
+    const finalIndex = fullRouteIndex >= 0 ? fullRouteIndex : this.routes.length - 1;
+    const end = this.project(this.routes[finalIndex].points.at(-1));
     svg.append(svgNode('circle', { cx: end[0], cy: end[1], r: 4, fill: '#dcdcc0' }));
-    svg.append(svgNode('text', { x: end[0] + 12, y: end[1] + 4, class: 'schema-label' }, this.stages.at(-1).end));
+    svg.append(svgNode('text', { x: end[0] + 12, y: end[1] + 4, class: 'schema-label' }, this.stages[finalIndex].end));
     this.schemaTravelled = svgNode('path', { fill: 'none', stroke: '#e8c183', 'stroke-width': '3.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
     this.schemaDot = svgNode('circle', { r: 6, fill: '#f2d89b', stroke: '#314b3a', 'stroke-width': 3 });
     svg.append(this.schemaTravelled, this.schemaDot);
