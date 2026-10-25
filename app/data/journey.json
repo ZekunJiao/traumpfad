@@ -4,7 +4,7 @@
   "subtitle": "Zu Fuß über die Alpen. Von München nach Venedig.",
   "totalDays": 27,
   "timezone": "Europe/Berlin",
-  "demo": true,
+  "demo": false,
   "chapters": [
     {
       "id": "gesamt",
@@ -17,7 +17,6 @@
       "id": "woche-01",
       "title": "Woche 1 · Voralpen und Karwendel",
       "stageIds": [
-        "tag-00",
         "tag-01",
         "tag-02",
         "tag-03",
@@ -128,45 +127,7 @@
         "connectorCount": 1
       },
       "durationSeconds": 1200,
-      "stops": [
-        {
-          "id": "stopp-bd30e467-49e1-4452-b514-9920b048c05b",
-          "progress": 0,
-          "title": "Start Marienplatz",
-          "approximate": true,
-          "caption": "",
-          "photoIds": [
-            "upload-203cada1-8182-4909-8b60-5a4a73d703c5"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "tag-00",
-      "day": 0,
-      "date": null,
-      "title": "Gotzinger Platz · München",
-      "location": {
-        "name": "Gotzinger Platz, München",
-        "coordinates": [
-          11.55047,
-          48.1179
-        ]
-      },
-      "isPointStage": true,
-      "description": "Ein einzelner Standpunkt ungefähr am Gotzinger Platz. Er ist nicht mit der Wanderroute verbunden und markiert weder Start noch Ende einer Etappe.",
-      "stops": [
-        {
-          "id": "fotopunkt-tag-00",
-          "progress": 0,
-          "title": "Daheim vor dem Aufbruch",
-          "approximate": true,
-          "caption": "Hier kannst du ein Foto und deine Erinnerung an den Ort vor dem Aufbruch ergänzen.",
-          "photoIds": [
-            "demo-tag-00"
-          ]
-        }
-      ]
+      "stops": []
     },
     {
       "id": "tag-01",
@@ -198,33 +159,73 @@
       "durationSeconds": 55,
       "stops": [
         {
-          "id": "stopp-01",
-          "progress": 0.08,
+          "id": "stopp-a2c20b01-42d1-425f-b9c4-da902a4f499b",
+          "progress": 0.7876564402734382,
+          "coordinates": [
+            11.468393190739675,
+            47.95598480214511
+          ],
           "title": "Schlafplatz 1",
-          "approximate": true,
-          "caption": "Hier könntest du dein Startfoto zeigen und erzählen, mit welchem Gefühl du losgegangen bist. Beispiel-Fotostopp, noch kein tatsächlicher Aufnahmeort.",
+          "caption": "",
           "photoIds": [
-            "upload-295e003d-9fcd-4ab7-8808-3ae0d1214608"
+            "upload-58e320df-17f8-47a1-8a58-7019d4faafe6",
+            "upload-713d5936-ce0c-4e21-8045-e438f0822e14",
+            "upload-cb0783a9-35ef-4517-a57b-a623ba744c5a",
+            "upload-fcc427a8-5d76-42a1-84b6-6003db262ee5"
           ]
         },
         {
-          "id": "stopp-02",
-          "progress": 0.66,
-          "title": "Unterwegs sein",
-          "approximate": true,
-          "caption": "Ein Platz für die erste Pause, den Blick zurück oder eine kleine Begegnung. Ort und Bilder ergänzen wir gemeinsam.",
+          "id": "stopp-699ec61a-a699-428f-89e8-01638a17294f",
+          "progress": 0.36937722528257255,
+          "coordinates": [
+            11.522163268129844,
+            48.05497177641115
+          ],
+          "title": "Drogerie Stopp",
+          "caption": "",
           "photoIds": [
-            "demo-02"
+            "upload-8d647021-850f-433d-98d6-155f0781c167"
           ]
         },
         {
-          "id": "stopp-71c65edd-2508-4fb6-bfb8-4b505be264ef",
-          "progress": 0.7880052148670689,
-          "title": "Neuer Fotopunkt",
+          "id": "stopp-zu-hause",
+          "progress": 0,
+          "coordinates": [
+            11.565831607234458,
+            48.15551410103336
+          ],
+          "title": "Zu Hause · München",
           "approximate": true,
           "caption": "",
           "photoIds": [
-            "upload-3fe0035f-8947-40f2-9cbf-f926f6ae9590"
+            "upload-d84220e9-a744-434c-9b4b-9a38b21e391e"
+          ]
+        },
+        {
+          "id": "stopp-bd30e467-49e1-4452-b514-9920b048c05b",
+          "progress": 0.00430355006316381,
+          "title": "Start Marienplatz",
+          "approximate": true,
+          "caption": "",
+          "photoIds": [
+            "upload-203cada1-8182-4909-8b60-5a4a73d703c5"
+          ],
+          "coordinates": [
+            11.576139123666195,
+            48.13696903217016
+          ]
+        },
+        {
+          "id": "stopp-1a09ab5f-5dbc-40b5-88f7-016b1c2fb81f",
+          "progress": 0.48046809947710756,
+          "coordinates": [
+            11.499141024568132,
+            48.02808130366242
+          ],
+          "title": "Erster und letzter mal Nass",
+          "caption": "",
+          "photoIds": [
+            "upload-b4093dc9-bb51-4ec4-92b7-c0ec1a43b573"
           ]
         }
       ],
@@ -260,13 +261,31 @@
       "durationSeconds": 50,
       "stops": [
         {
-          "id": "stopp-03",
-          "progress": 0.55,
-          "title": "Ein Tag im Gehen",
-          "approximate": true,
-          "caption": "Dein Foto und deine Erinnerung an diesen Tag kommen hierhin.",
+          "id": "stopp-4364a818-fee9-4902-af6c-8cdd571d1fd9",
+          "progress": 0.7314505469403848,
+          "coordinates": [
+            11.538911468485907,
+            47.80560043530011
+          ],
+          "title": "Schlafplatz",
+          "caption": "",
           "photoIds": [
-            "demo-03"
+            "upload-fcbc9de2-1561-40fd-9849-0102b46e2a71",
+            "upload-7d9d61ea-cc5a-4010-a239-eaff2e9917ba"
+          ]
+        },
+        {
+          "id": "stopp-0c5a8a07-667e-4634-b3b9-d0a3d4b38184",
+          "progress": 0.8297583978592772,
+          "coordinates": [
+            11.527817023342152,
+            47.784259465149006
+          ],
+          "title": "Wasser Für Venedig",
+          "caption": "",
+          "photoIds": [
+            "upload-e901b2c7-2531-42e0-bb64-567648588605",
+            "upload-1a507e49-89e5-4ae9-bfa3-6c1c7231f6c0"
           ]
         }
       ],
@@ -302,23 +321,17 @@
       "durationSeconds": 65,
       "stops": [
         {
-          "id": "stopp-04",
-          "progress": 0.47,
-          "title": "Die Berge rücken näher",
-          "approximate": true,
-          "caption": "Zeit für einen ersten großen Ausblick und deine Geschichte dazu.",
+          "id": "stopp-a0393a67-8b74-4ab4-aec2-67cdeb9602cc",
+          "progress": 0.8857129327330435,
+          "coordinates": [
+            11.472700570332591,
+            47.66643301448269
+          ],
+          "title": "Schlafplatz Tag 3",
+          "caption": "",
           "photoIds": [
-            "demo-04"
-          ]
-        },
-        {
-          "id": "stopp-05",
-          "progress": 0.96,
-          "title": "Ankommen für heute",
-          "approximate": true,
-          "caption": "Hüttenabend, Zelt oder ein anderer Schlafplatz: Hier ergänzen wir deine tatsächliche Übernachtung.",
-          "photoIds": [
-            "demo-05"
+            "upload-1b2fe20f-12a4-44c3-8045-d8a4713026c1",
+            "upload-a51bdf8a-5ed8-49d7-80e2-48507c3e760a"
           ]
         }
       ],
@@ -354,13 +367,16 @@
       "durationSeconds": 55,
       "stops": [
         {
-          "id": "stopp-06",
-          "progress": 0.5,
-          "title": "Ein Moment zum Innehalten",
-          "approximate": true,
-          "caption": "Manchmal reicht ein einzelnes Bild, um sich wieder an einen ganzen Tag zu erinnern.",
+          "id": "stopp-2c51c5a8-84ae-4b86-ae7c-8effb09c12d7",
+          "progress": 0.026817502295899097,
+          "coordinates": [
+            11.465344433303443,
+            47.653290546393805
+          ],
+          "title": "Benediktenwand",
+          "caption": "",
           "photoIds": [
-            "demo-06"
+            "upload-f1d7dbba-e1a6-443e-a5c0-25f782e69788"
           ]
         }
       ],
@@ -394,18 +410,7 @@
         "coordinateSpace": "composite-route"
       },
       "durationSeconds": 65,
-      "stops": [
-        {
-          "id": "stopp-07",
-          "progress": 0.64,
-          "title": "Im Karwendel",
-          "approximate": true,
-          "caption": "Hier bekommt eines deiner Landschaftsbilder Raum. Der Flug hält an, bis du weitererzählst.",
-          "photoIds": [
-            "demo-07"
-          ]
-        }
-      ],
+      "stops": [],
       "referenceSection": true
     },
     {
@@ -436,19 +441,7 @@
         "coordinateSpace": "composite-route"
       },
       "durationSeconds": 65,
-      "stops": [
-        {
-          "id": "stopp-08",
-          "progress": 0.35,
-          "title": "Ein besonderer Übergang",
-          "approximate": true,
-          "caption": "Ein Fotostopp kann auch mehrere Bilder enthalten. Die ungefähre Position legen wir später gemeinsam fest.",
-          "photoIds": [
-            "demo-08",
-            "demo-09"
-          ]
-        }
-      ],
+      "stops": [],
       "referenceSection": true
     },
     {
@@ -479,28 +472,7 @@
         "coordinateSpace": "composite-route"
       },
       "durationSeconds": 55,
-      "stops": [
-        {
-          "id": "stopp-09",
-          "progress": 0.42,
-          "title": "Der Blick ins Tal",
-          "approximate": true,
-          "caption": "Ein Ort für dein Lieblingsbild vom Abstieg oder eine Geschichte vom Weg.",
-          "photoIds": [
-            "demo-10"
-          ]
-        },
-        {
-          "id": "stopp-10",
-          "progress": 0.97,
-          "title": "Eine Woche unterwegs",
-          "approximate": true,
-          "caption": "Wie hat sich das Unterwegssein inzwischen angefühlt? Hier endet das erste Beispielkapitel.",
-          "photoIds": [
-            "demo-11"
-          ]
-        }
-      ],
+      "stops": [],
       "referenceSection": true
     },
     {
@@ -724,11 +696,11 @@
       "id": "tag-15",
       "day": 15,
       "date": null,
-      "title": "Schlüterhütte → Grödner Joch",
+      "title": "Schlüterhütte → Rifugio Puez",
       "start": "Schlüterhütte",
-      "end": "Grödner Joch",
-      "description": "GPX-Referenzabschnitt Schlüterhütte nach Grödner Joch. Die veröffentlichte 28-Tage-Route wurde für deine 27 Tage in Tagesabschnitte geteilt; persönliche Tagesgrenzen, Schlafplätze und Fotostopps noch abgleichen.",
-      "overnight": null,
+      "end": "Rifugio Puez",
+      "description": "Deine Etappe führt von der Schlüterhütte direkt zur Puezhütte (Rifugio Puez). Das Tagesziel und der Schlafplatz sind entsprechend gesetzt.",
+      "overnight": "Rifugio Puez",
       "routeFile": "routes/tag-15.geojson",
       "routeProvenance": {
         "kind": "reconstructed",
@@ -737,12 +709,12 @@
         "author": "Björn Mußmann – Outdooractive Community",
         "originalUrl": "https://www.outdooractive.com/r/104193538",
         "downloadedAt": "2026-10-25",
-        "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Tagesgrenzen an der 28-Tage-Variante angenähert; persönliche Tagesrouten, Übernachtungen und Fotostopps noch abzugleichen.",
+        "note": "GPX-Referenztrack. Die Tagesgrenze wurde anhand der vom Reisenden genannten Etappenorte neu gesetzt; der Linienverlauf bleibt ein rekonstruierter Referenztrack.",
         "startPointIndex": 20103,
-        "endPointIndex": 23327,
+        "endPointIndex": 22007,
         "sourcePointRange": {
           "startPointIndex": 20103,
-          "endPointIndex": 23327
+          "endPointIndex": 22007
         },
         "stageId": "tag-15",
         "coordinateSpace": "composite-route"
@@ -755,11 +727,11 @@
       "id": "tag-16",
       "day": 16,
       "date": null,
-      "title": "Grödner Joch → Boèhütte",
-      "start": "Grödner Joch",
-      "end": "Boèhütte",
-      "description": "GPX-Referenzabschnitt Grödner Joch nach Boèhütte. Die veröffentlichte 28-Tage-Route wurde für deine 27 Tage in Tagesabschnitte geteilt; persönliche Tagesgrenzen, Schlafplätze und Fotostopps noch abgleichen.",
-      "overnight": null,
+      "title": "Rifugio Puez → Capanna Piz Fassa",
+      "start": "Rifugio Puez",
+      "end": "Capanna Piz Fassa",
+      "description": "Von der Puezhütte zur Capanna Piz Fassa auf dem Gipfel des Piz Boè (3.152 m). Gemeint ist die Gipfelhütte, nicht das tiefer gelegene Rifugio Boè.",
+      "overnight": "Capanna Piz Fassa",
       "routeFile": "routes/tag-16.geojson",
       "routeProvenance": {
         "kind": "reconstructed",
@@ -768,12 +740,12 @@
         "author": "Björn Mußmann – Outdooractive Community",
         "originalUrl": "https://www.outdooractive.com/r/104193538",
         "downloadedAt": "2026-10-25",
-        "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Tagesgrenzen an der 28-Tage-Variante angenähert; persönliche Tagesrouten, Übernachtungen und Fotostopps noch abzugleichen.",
-        "startPointIndex": 23327,
-        "endPointIndex": 24505,
+        "note": "GPX-Referenztrack. Die Tagesgrenze wurde anhand der vom Reisenden genannten Etappenorte neu gesetzt; der Linienverlauf bleibt ein rekonstruierter Referenztrack.",
+        "startPointIndex": 22007,
+        "endPointIndex": 24741,
         "sourcePointRange": {
-          "startPointIndex": 23327,
-          "endPointIndex": 24505
+          "startPointIndex": 22007,
+          "endPointIndex": 24741
         },
         "stageId": "tag-16",
         "coordinateSpace": "composite-route"
@@ -786,10 +758,10 @@
       "id": "tag-17",
       "day": 17,
       "date": null,
-      "title": "Boèhütte → Fedaia",
-      "start": "Boèhütte",
+      "title": "Capanna Piz Fassa → Fedaia",
+      "start": "Capanna Piz Fassa",
       "end": "Fedaia",
-      "description": "GPX-Referenzabschnitt Boèhütte nach Fedaia. Die veröffentlichte 28-Tage-Route wurde für deine 27 Tage in Tagesabschnitte geteilt; persönliche Tagesgrenzen, Schlafplätze und Fotostopps noch abgleichen.",
+      "description": "Etappe von der Capanna Piz Fassa auf dem Piz-Boè-Gipfel hinunter nach Fedaia.",
       "overnight": null,
       "routeFile": "routes/tag-17.geojson",
       "routeProvenance": {
@@ -799,11 +771,11 @@
         "author": "Björn Mußmann – Outdooractive Community",
         "originalUrl": "https://www.outdooractive.com/r/104193538",
         "downloadedAt": "2026-10-25",
-        "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Tagesgrenzen an der 28-Tage-Variante angenähert; persönliche Tagesrouten, Übernachtungen und Fotostopps noch abzugleichen.",
-        "startPointIndex": 24505,
+        "note": "GPX-Referenztrack. Die Tagesgrenze wurde anhand der vom Reisenden genannten Etappenorte neu gesetzt; der Linienverlauf bleibt ein rekonstruierter Referenztrack.",
+        "startPointIndex": 24741,
         "endPointIndex": 25530,
         "sourcePointRange": {
-          "startPointIndex": 24505,
+          "startPointIndex": 24741,
           "endPointIndex": 25530
         },
         "stageId": "tag-17",
@@ -848,11 +820,11 @@
       "id": "tag-19",
       "day": 19,
       "date": null,
-      "title": "Rifugio Tissi → Rifugio Carestiato",
+      "title": "Rifugio Tissi → Passo Duran",
       "start": "Rifugio Tissi",
-      "end": "Rifugio Carestiato",
-      "description": "GPX-Referenzabschnitt Rifugio Tissi nach Rifugio Carestiato. Die veröffentlichte 28-Tage-Route wurde für deine 27 Tage in Tagesabschnitte geteilt; persönliche Tagesgrenzen, Schlafplätze und Fotostopps noch abgleichen.",
-      "overnight": null,
+      "end": "Passo Duran",
+      "description": "Deine Etappe führt vom Rifugio Tissi bis zum Passo Duran. Das Rifugio Carestiato ist kein separates Tagesziel mehr.",
+      "overnight": "Passo Duran",
       "routeFile": "routes/tag-19.geojson",
       "routeProvenance": {
         "kind": "reconstructed",
@@ -861,12 +833,12 @@
         "author": "Björn Mußmann – Outdooractive Community",
         "originalUrl": "https://www.outdooractive.com/r/104193538",
         "downloadedAt": "2026-10-25",
-        "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Tagesgrenzen an der 28-Tage-Variante angenähert; persönliche Tagesrouten, Übernachtungen und Fotostopps noch abzugleichen.",
+        "note": "GPX-Referenztrack. Die Tagesgrenze wurde anhand der vom Reisenden genannten Etappenorte neu gesetzt; der Linienverlauf bleibt ein rekonstruierter Referenztrack.",
         "startPointIndex": 26537,
-        "endPointIndex": 27315,
+        "endPointIndex": 27460,
         "sourcePointRange": {
           "startPointIndex": 26537,
-          "endPointIndex": 27315
+          "endPointIndex": 27460
         },
         "stageId": "tag-19",
         "coordinateSpace": "composite-route"
@@ -879,11 +851,11 @@
       "id": "tag-20",
       "day": 20,
       "date": null,
-      "title": "Rifugio Carestiato → Rifugio Pian de Fontana",
-      "start": "Rifugio Carestiato",
-      "end": "Rifugio Pian de Fontana",
-      "description": "GPX-Referenzabschnitt Rifugio Carestiato nach Rifugio Pian de Fontana. Die veröffentlichte 28-Tage-Route wurde für deine 27 Tage in Tagesabschnitte geteilt; persönliche Tagesgrenzen, Schlafplätze und Fotostopps noch abgleichen.",
-      "overnight": null,
+      "title": "Passo Duran → Rifugio Sommariva al Pramperet",
+      "start": "Passo Duran",
+      "end": "Rifugio Sommariva al Pramperet",
+      "description": "Von Passo Duran weiter zum Rifugio Sommariva al Pramperet.",
+      "overnight": "Rifugio Sommariva al Pramperet",
       "routeFile": "routes/tag-20.geojson",
       "routeProvenance": {
         "kind": "reconstructed",
@@ -892,12 +864,12 @@
         "author": "Björn Mußmann – Outdooractive Community",
         "originalUrl": "https://www.outdooractive.com/r/104193538",
         "downloadedAt": "2026-10-25",
-        "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Tagesgrenzen an der 28-Tage-Variante angenähert; persönliche Tagesrouten, Übernachtungen und Fotostopps noch abzugleichen.",
-        "startPointIndex": 27315,
-        "endPointIndex": 28229,
+        "note": "GPX-Referenztrack. Die Tagesgrenze wurde anhand der vom Reisenden genannten Etappenorte neu gesetzt; der Linienverlauf bleibt ein rekonstruierter Referenztrack.",
+        "startPointIndex": 27460,
+        "endPointIndex": 27996,
         "sourcePointRange": {
-          "startPointIndex": 27315,
-          "endPointIndex": 28229
+          "startPointIndex": 27460,
+          "endPointIndex": 27996
         },
         "stageId": "tag-20",
         "coordinateSpace": "composite-route"
@@ -910,11 +882,11 @@
       "id": "tag-21",
       "day": 21,
       "date": null,
-      "title": "Rifugio Pian de Fontana → Rifugio 7° Alpini",
-      "start": "Rifugio Pian de Fontana",
-      "end": "Rifugio 7° Alpini",
-      "description": "Etappe über die Schiara mit Klettersteig, wie von dir beschrieben. Der Linienverlauf folgt dem veröffentlichten GPX-Referenztrack; persönliche Fotostopps und Übernachtung können später ergänzt werden.",
-      "overnight": null,
+      "title": "Rifugio Sommariva al Pramperet → Rifugio Pian de Fontana",
+      "start": "Rifugio Sommariva al Pramperet",
+      "end": "Rifugio Pian de Fontana",
+      "description": "Etappe vom Rifugio Sommariva al Pramperet zum Rifugio Pian de Fontana.",
+      "overnight": "Rifugio Pian de Fontana",
       "routeFile": "routes/tag-21.geojson",
       "routeProvenance": {
         "kind": "reconstructed",
@@ -923,12 +895,12 @@
         "author": "Björn Mußmann – Outdooractive Community",
         "originalUrl": "https://www.outdooractive.com/r/104193538",
         "downloadedAt": "2026-10-25",
-        "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Tagesgrenzen an der 28-Tage-Variante angenähert; persönliche Tagesrouten, Übernachtungen und Fotostopps noch abzugleichen.",
-        "startPointIndex": 28229,
-        "endPointIndex": 28546,
+        "note": "GPX-Referenztrack. Die Tagesgrenze wurde anhand der vom Reisenden genannten Etappenorte neu gesetzt; der Linienverlauf bleibt ein rekonstruierter Referenztrack.",
+        "startPointIndex": 27996,
+        "endPointIndex": 28229,
         "sourcePointRange": {
-          "startPointIndex": 28229,
-          "endPointIndex": 28546
+          "startPointIndex": 27996,
+          "endPointIndex": 28229
         },
         "stageId": "tag-21",
         "coordinateSpace": "composite-route"
@@ -941,11 +913,11 @@
       "id": "tag-22",
       "day": 22,
       "date": null,
-      "title": "Rifugio 7° Alpini → Belluno",
-      "start": "Rifugio 7° Alpini",
+      "title": "Rifugio Pian de Fontana → Belluno",
+      "start": "Rifugio Pian de Fontana",
       "end": "Belluno",
-      "description": "GPX-Referenzabschnitt Rifugio 7° Alpini nach Belluno. Die veröffentlichte 28-Tage-Route wurde für deine 27 Tage in Tagesabschnitte geteilt; persönliche Tagesgrenzen, Schlafplätze und Fotostopps noch abgleichen.",
-      "overnight": null,
+      "description": "Direkt vom Rifugio Pian de Fontana nach Belluno über die Schiara. Das Rifugio 7° Alpini liegt auf dem Weg, ist aber kein eigenes Tagesziel.",
+      "overnight": "Belluno",
       "routeFile": "routes/tag-22.geojson",
       "routeProvenance": {
         "kind": "reconstructed",
@@ -954,11 +926,11 @@
         "author": "Björn Mußmann – Outdooractive Community",
         "originalUrl": "https://www.outdooractive.com/r/104193538",
         "downloadedAt": "2026-10-25",
-        "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Tagesgrenzen an der 28-Tage-Variante angenähert; persönliche Tagesrouten, Übernachtungen und Fotostopps noch abzugleichen.",
-        "startPointIndex": 28546,
+        "note": "GPX-Referenztrack. Die Tagesgrenze wurde anhand der vom Reisenden genannten Etappenorte neu gesetzt; der Linienverlauf bleibt ein rekonstruierter Referenztrack.",
+        "startPointIndex": 28229,
         "endPointIndex": 29373,
         "sourcePointRange": {
-          "startPointIndex": 28546,
+          "startPointIndex": 28229,
           "endPointIndex": 29373
         },
         "stageId": "tag-22",
@@ -1231,103 +1203,14 @@
   ],
   "photos": [
     {
-      "id": "demo-01",
-      "stageId": "tag-01",
-      "placeholder": true,
-      "title": "Dein Startfoto",
-      "caption": "Noch kein persönliches Foto importiert."
-    },
-    {
-      "id": "demo-02",
-      "stageId": "tag-01",
-      "placeholder": true,
-      "title": "Die ersten Kilometer",
-      "caption": "Noch kein persönliches Foto importiert."
-    },
-    {
-      "id": "demo-03",
-      "stageId": "tag-02",
-      "placeholder": true,
-      "title": "Ein Tag am Weg",
-      "caption": "Noch kein persönliches Foto importiert."
-    },
-    {
-      "id": "demo-04",
-      "stageId": "tag-03",
-      "placeholder": true,
-      "title": "Der erste Ausblick",
-      "caption": "Noch kein persönliches Foto importiert."
-    },
-    {
-      "id": "demo-05",
-      "stageId": "tag-03",
-      "placeholder": true,
-      "title": "Dein Schlafplatz",
-      "caption": "Noch kein persönliches Foto importiert."
-    },
-    {
-      "id": "demo-06",
-      "stageId": "tag-04",
-      "placeholder": true,
-      "title": "Kleine Erinnerungen",
-      "caption": "Noch kein persönliches Foto importiert."
-    },
-    {
-      "id": "demo-07",
-      "stageId": "tag-05",
-      "placeholder": true,
-      "title": "Mitten in den Bergen",
-      "caption": "Noch kein persönliches Foto importiert."
-    },
-    {
-      "id": "demo-08",
-      "stageId": "tag-06",
-      "placeholder": true,
-      "title": "Ein großer Bergtag",
-      "caption": "Noch kein persönliches Foto importiert."
-    },
-    {
-      "id": "demo-09",
-      "stageId": "tag-06",
-      "placeholder": true,
-      "title": "Der Blick zurück",
-      "caption": "Noch kein persönliches Foto importiert."
-    },
-    {
-      "id": "demo-10",
-      "stageId": "tag-07",
-      "placeholder": true,
-      "title": "Bald wieder im Tal",
-      "caption": "Noch kein persönliches Foto importiert."
-    },
-    {
-      "id": "demo-11",
-      "stageId": "tag-07",
-      "placeholder": true,
-      "title": "Deine erste Woche",
-      "caption": "Noch kein persönliches Foto importiert."
-    },
-    {
       "id": "upload-203cada1-8182-4909-8b60-5a4a73d703c5",
       "mediaType": "image",
       "originalName": "9355C117-31CE-47B9-AEC2-D4C3D9B5FCE0.jpg",
       "file": "assets/photos/203cada1-8182-4909-8b60-5a4a73d703c5.jpg",
       "thumbnail": "assets/photos/203cada1-8182-4909-8b60-5a4a73d703c5-thumb.jpg",
-      "stageId": "gesamtstrecke",
-      "assignment": "manual",
-      "title": "9355C117-31CE-47B9-AEC2-D4C3D9B5FCE0",
-      "caption": "",
-      "placeholder": false
-    },
-    {
-      "id": "upload-295e003d-9fcd-4ab7-8808-3ae0d1214608",
-      "mediaType": "video",
-      "originalName": "IMG_8567.MOV",
-      "file": "assets/photos/295e003d-9fcd-4ab7-8808-3ae0d1214608.mov",
-      "thumbnail": "assets/photos/295e003d-9fcd-4ab7-8808-3ae0d1214608-thumb.jpg",
       "stageId": "tag-01",
       "assignment": "manual",
-      "title": "IMG_8567",
+      "title": "9355C117-31CE-47B9-AEC2-D4C3D9B5FCE0",
       "caption": "",
       "placeholder": false
     },
@@ -1341,14 +1224,200 @@
       "assignment": "manual",
       "title": "IMG_8567",
       "caption": "",
+      "placeholder": false,
+      "galleryTarget": "day"
+    },
+    {
+      "id": "upload-58e320df-17f8-47a1-8a58-7019d4faafe6",
+      "mediaType": "video",
+      "originalName": "IMG_8567.MOV",
+      "file": "assets/photos/58e320df-17f8-47a1-8a58-7019d4faafe6.mov",
+      "thumbnail": "assets/photos/58e320df-17f8-47a1-8a58-7019d4faafe6-thumb.jpg",
+      "stageId": "tag-01",
+      "assignment": "manual",
+      "caption": "",
       "placeholder": false
     },
     {
-      "id": "demo-tag-00",
-      "stageId": "tag-00",
-      "placeholder": true,
-      "title": "Ein Foto vor dem Aufbruch",
-      "caption": "Noch kein persönliches Foto hinzugefügt."
+      "id": "upload-713d5936-ce0c-4e21-8045-e438f0822e14",
+      "mediaType": "image",
+      "originalName": "IMG_8568.jpeg",
+      "file": "assets/photos/713d5936-ce0c-4e21-8045-e438f0822e14.jpg",
+      "thumbnail": "assets/photos/713d5936-ce0c-4e21-8045-e438f0822e14-thumb.jpg",
+      "stageId": "tag-01",
+      "assignment": "manual",
+      "caption": "",
+      "placeholder": false
+    },
+    {
+      "id": "upload-cb0783a9-35ef-4517-a57b-a623ba744c5a",
+      "mediaType": "video",
+      "originalName": "IMG_8570.MOV",
+      "file": "assets/photos/cb0783a9-35ef-4517-a57b-a623ba744c5a.mov",
+      "thumbnail": "assets/photos/cb0783a9-35ef-4517-a57b-a623ba744c5a-thumb.jpg",
+      "stageId": "tag-01",
+      "assignment": "manual",
+      "caption": "",
+      "placeholder": false
+    },
+    {
+      "id": "upload-8d647021-850f-433d-98d6-155f0781c167",
+      "mediaType": "image",
+      "originalName": "IMG_8544.jpeg",
+      "file": "assets/photos/8d647021-850f-433d-98d6-155f0781c167.jpg",
+      "thumbnail": "assets/photos/8d647021-850f-433d-98d6-155f0781c167-thumb.jpg",
+      "stageId": "tag-01",
+      "assignment": "manual",
+      "caption": "",
+      "placeholder": false
+    },
+    {
+      "id": "upload-8ca43ac9-3a4a-4985-b5d3-644cfabd3c54",
+      "mediaType": "video",
+      "originalName": "IMG_8554.MOV",
+      "file": "assets/photos/8ca43ac9-3a4a-4985-b5d3-644cfabd3c54.mov",
+      "thumbnail": "assets/photos/8ca43ac9-3a4a-4985-b5d3-644cfabd3c54-thumb.jpg",
+      "stageId": "tag-01",
+      "assignment": "manual",
+      "caption": "",
+      "placeholder": false,
+      "galleryTarget": "day"
+    },
+    {
+      "id": "upload-fcc427a8-5d76-42a1-84b6-6003db262ee5",
+      "mediaType": "image",
+      "originalName": "IMG_8573.jpeg",
+      "file": "assets/photos/fcc427a8-5d76-42a1-84b6-6003db262ee5.jpg",
+      "thumbnail": "assets/photos/fcc427a8-5d76-42a1-84b6-6003db262ee5-thumb.jpg",
+      "stageId": "tag-01",
+      "assignment": "manual",
+      "caption": "",
+      "placeholder": false,
+      "galleryTarget": "day"
+    },
+    {
+      "id": "upload-1b2fe20f-12a4-44c3-8045-d8a4713026c1",
+      "mediaType": "video",
+      "originalName": "IMG_8628.MOV",
+      "file": "assets/photos/1b2fe20f-12a4-44c3-8045-d8a4713026c1.mov",
+      "thumbnail": "assets/photos/1b2fe20f-12a4-44c3-8045-d8a4713026c1-thumb.jpg",
+      "stageId": "tag-03",
+      "assignment": "manual",
+      "caption": "",
+      "placeholder": false
+    },
+    {
+      "id": "upload-a51bdf8a-5ed8-49d7-80e2-48507c3e760a",
+      "mediaType": "video",
+      "originalName": "IMG_8630.MOV",
+      "file": "assets/photos/a51bdf8a-5ed8-49d7-80e2-48507c3e760a.mov",
+      "thumbnail": "assets/photos/a51bdf8a-5ed8-49d7-80e2-48507c3e760a-thumb.jpg",
+      "stageId": "tag-03",
+      "assignment": "manual",
+      "caption": "",
+      "placeholder": false
+    },
+    {
+      "id": "upload-f1d7dbba-e1a6-443e-a5c0-25f782e69788",
+      "mediaType": "video",
+      "originalName": "IMG_8645.MOV",
+      "file": "assets/photos/f1d7dbba-e1a6-443e-a5c0-25f782e69788.mov",
+      "thumbnail": "assets/photos/f1d7dbba-e1a6-443e-a5c0-25f782e69788-thumb.jpg",
+      "stageId": "tag-04",
+      "assignment": "manual",
+      "caption": "",
+      "placeholder": false
+    },
+    {
+      "id": "upload-d84220e9-a744-434c-9b4b-9a38b21e391e",
+      "mediaType": "video",
+      "originalName": "IMG_8517.MOV",
+      "file": "assets/photos/d84220e9-a744-434c-9b4b-9a38b21e391e.mov",
+      "thumbnail": "assets/photos/d84220e9-a744-434c-9b4b-9a38b21e391e-thumb.jpg",
+      "stageId": "tag-01",
+      "assignment": "manual",
+      "caption": "",
+      "placeholder": false
+    },
+    {
+      "id": "upload-fcbc9de2-1561-40fd-9849-0102b46e2a71",
+      "mediaType": "video",
+      "originalName": "IMG_8599.MOV",
+      "file": "assets/photos/fcbc9de2-1561-40fd-9849-0102b46e2a71.mov",
+      "thumbnail": "assets/photos/fcbc9de2-1561-40fd-9849-0102b46e2a71-thumb.jpg",
+      "stageId": "tag-02",
+      "assignment": "manual",
+      "caption": "",
+      "placeholder": false
+    },
+    {
+      "id": "upload-7d9d61ea-cc5a-4010-a239-eaff2e9917ba",
+      "mediaType": "image",
+      "originalName": "IMG_8600.jpeg",
+      "file": "assets/photos/7d9d61ea-cc5a-4010-a239-eaff2e9917ba.jpg",
+      "thumbnail": "assets/photos/7d9d61ea-cc5a-4010-a239-eaff2e9917ba-thumb.jpg",
+      "stageId": "tag-02",
+      "assignment": "manual",
+      "caption": "",
+      "placeholder": false
+    },
+    {
+      "id": "upload-e901b2c7-2531-42e0-bb64-567648588605",
+      "mediaType": "image",
+      "originalName": "IMG_8605.jpeg",
+      "file": "assets/photos/e901b2c7-2531-42e0-bb64-567648588605.jpg",
+      "thumbnail": "assets/photos/e901b2c7-2531-42e0-bb64-567648588605-thumb.jpg",
+      "stageId": "tag-02",
+      "assignment": "manual",
+      "caption": "",
+      "placeholder": false
+    },
+    {
+      "id": "upload-1a507e49-89e5-4ae9-bfa3-6c1c7231f6c0",
+      "mediaType": "video",
+      "originalName": "IMG_8606.MOV",
+      "file": "assets/photos/1a507e49-89e5-4ae9-bfa3-6c1c7231f6c0.mov",
+      "thumbnail": "assets/photos/1a507e49-89e5-4ae9-bfa3-6c1c7231f6c0-thumb.jpg",
+      "stageId": "tag-02",
+      "assignment": "manual",
+      "caption": "",
+      "placeholder": false
+    },
+    {
+      "id": "upload-42eea6d8-ec62-4970-815c-44bf90ab00ec",
+      "mediaType": "video",
+      "originalName": "IMG_8521.MOV",
+      "file": "assets/photos/42eea6d8-ec62-4970-815c-44bf90ab00ec.mov",
+      "thumbnail": "assets/photos/42eea6d8-ec62-4970-815c-44bf90ab00ec-thumb.jpg",
+      "stageId": "tag-01",
+      "assignment": "manual",
+      "caption": "",
+      "placeholder": false,
+      "galleryTarget": "day"
+    },
+    {
+      "id": "upload-b4093dc9-bb51-4ec4-92b7-c0ec1a43b573",
+      "mediaType": "video",
+      "originalName": "IMG_8554.MOV",
+      "file": "assets/photos/b4093dc9-bb51-4ec4-92b7-c0ec1a43b573.mov",
+      "thumbnail": "assets/photos/b4093dc9-bb51-4ec4-92b7-c0ec1a43b573-thumb.jpg",
+      "stageId": "tag-01",
+      "assignment": "manual",
+      "caption": "",
+      "placeholder": false
+    },
+    {
+      "id": "upload-456c51ab-a408-46c5-bf4d-e2ee3807e64e",
+      "mediaType": "image",
+      "originalName": "IMG_8611.jpeg",
+      "file": "assets/photos/456c51ab-a408-46c5-bf4d-e2ee3807e64e.jpg",
+      "thumbnail": "assets/photos/456c51ab-a408-46c5-bf4d-e2ee3807e64e-thumb.jpg",
+      "stageId": "tag-02",
+      "galleryTarget": "sleep",
+      "galleryOrder": 0,
+      "assignment": "manual",
+      "caption": "",
+      "placeholder": false
     }
   ],
   "routeDownload": "data/routes/traumpfad-muenchen-venedig.gpx"

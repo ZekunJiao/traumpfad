@@ -1,4 +1,4 @@
-import { clamp } from './route.js';
+import { clamp, nearestProgress } from './route.js';
 
 function groupMarkers(markers, routeLength) {
   const tolerance = 1 / routeLength;
@@ -21,8 +21,19 @@ export function buildJourneyTimeline(stages, routes) {
   if (fullRouteIndex < 0 || !fullRoute) return { fullRouteIndex, routeLength: 0, segments: [], markers: [] };
 
   const segments = [], markers = [];
-  stages.forEach((stage, stageIndex) => {
-    if (stage.isFullRoute || stage.isPointStage) return;
+  const addPhotoMarker = (stage, stop, progress) => markers.push({
+    kind: 'photo', id: stop.id, progress, day: stage.day ?? null,
+    title: stop.title || `Fotopunkt · Tag ${stage.day}`,
+    description: stop.caption || '',
+    stageTitle: stage.title,
+    stop
+  });
+  stages.forEach(stage => {
+    if (stage.isFullRoute) {
+      for (const stop of stage.stops || []) addPhotoMarker(stage, stop, stopRouteProgress(stop, stage, null, fullRoute));
+      return;
+    }
+    if (stage.isPointStage) return;
     const { startPointIndex, endPointIndex } = stage.routeProvenance || {};
     if (!Number.isInteger(startPointIndex) || !Number.isInteger(endPointIndex)
       || startPointIndex < 0 || endPointIndex <= startPointIndex || endPointIndex >= fullRoute.points.length) return;
@@ -51,15 +62,8 @@ export function buildJourneyTimeline(stages, routes) {
     markers.push({ kind: 'day', id: stage.id, progress: end, segment });
 
     for (const stop of stage.stops || []) {
-      const localProgress = clamp(stop.progress);
-      const progress = (startDistance + length * localProgress) / fullRoute.length;
-      markers.push({
-        kind: 'photo', id: stop.id, progress, day: stage.day,
-        title: stop.title || `Fotopunkt · Tag ${stage.day}`,
-        description: stop.caption || '',
-        stageTitle: stage.title,
-        stop
-      });
+      const progress = stopRouteProgress(stop, stage, { segments }, fullRoute);
+      addPhotoMarker(stage, stop, progress);
     }
   });
 
@@ -68,17 +72,26 @@ export function buildJourneyTimeline(stages, routes) {
 }
 
 /** Copies local photo-stop positions onto the single route used by playback and map markers. */
-export function projectPlaybackStops(stages, timeline) {
+export function stopRouteProgress(stop, stage, timeline, fullRoute) {
+  if (Array.isArray(stop.coordinates) && fullRoute) return nearestProgress(fullRoute, stop.coordinates);
+  const segment = stage.isFullRoute ? null : timeline?.segments?.find(item => item.id === stage.id);
+  const localProgress = clamp(stop.progress);
+  return segment ? segment.start + (segment.end - segment.start) * localProgress : localProgress;
+}
+
+export function projectPlaybackStops(stages, timeline, fullRoute) {
   const segments = timeline?.segments || [];
   return stages.filter(stage => !stage.isPointStage).flatMap(stage => (stage.stops || []).map(stop => {
-    const segment = stage.isFullRoute ? null : segments.find(item => item.id === stage.id);
-    const localProgress = clamp(stop.progress);
+    const progress = stopRouteProgress(stop, stage, timeline, fullRoute);
+    const segment = timelineSegmentAt(segments, progress)
+      || segments.find(item => item.start >= progress)
+      || segments.at(-1);
     return {
       ...stop,
       stageId: stage.id,
-      day: stage.day || null,
-      stageTitle: stage.title,
-      progress: segment ? segment.start + (segment.end - segment.start) * localProgress : localProgress
+      day: segment?.day ?? stage.day ?? null,
+      stageTitle: segment?.title ?? stage.title,
+      progress
     };
   })).sort((a, b) => a.progress - b.progress);
 }
@@ -96,8 +109,7 @@ export function visibleTimelineMarkerGroups(timeline, width, minSpacing = 24) {
   const makeGroup = group => {
     const positions = group.items.map(item => item.progress).filter(Number.isFinite);
     if (!positions.length) return { ...group, needsChoice: false, key: group.items.map(item => `${item.kind}:${item.id}`).join('|') };
-    const min = Math.min(...positions), max = Math.max(...positions);
-    const needsChoice = max - min > 1 / timeline.routeLength;
+    const needsChoice = group.items.length > 1;
     return {
       ...group,
       needsChoice,

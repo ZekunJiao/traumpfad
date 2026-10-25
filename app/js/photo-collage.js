@@ -4,8 +4,9 @@ export class PhotoCollage {
     this.phase = 'hidden'; this.stop = null; this.photos = []; this.offset = 0; this.generation = 0;
   }
   get active() { return this.stop !== null; }
+  get hasNext() { return this.offset + this.pageSize < this.photos.length; }
   snapshot(entries = []) {
-    return { phase: this.phase, stop: this.stop, entries, offset: this.offset, total: this.photos.length, pageSize: this.pageSize, hasPrevious: this.offset > 0, hasNext: this.offset + this.pageSize < this.photos.length };
+    return { phase: this.phase, stop: this.stop, entries, offset: this.offset, total: this.photos.length, pageSize: this.pageSize, hasPrevious: this.offset > 0, hasNext: this.hasNext };
   }
   cancelLoad() { this.generation++; this.abortController?.abort(); }
   queue(stop, photos) {

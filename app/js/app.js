@@ -1,29 +1,39 @@
 import { initDiskCache } from './disk-cache-ui.js';
-import { clamp, nearestProgress, prepareRoute, validateJourney } from './route.js';
+import { clamp, nearestProgress, pointStageCoordinates, prepareRoute, validateJourney } from './route.js';
 import { TourPlayer } from './player.js';
 import { JourneyMap } from './map.js';
 import { checkMapboxConnection } from './token-check.js';
 import { readBrowserMapCache, describeBrowserMapCache } from './browser-cache.js';
 import { PhotoCollage, decodePhotoNode } from './photo-collage.js';
 import { PhotoTransition } from './photo-transition.js';
-import { buildJourneyTimeline, projectPlaybackStops, timelineSegmentAt, visibleTimelineMarkerGroups } from './timeline.js';
+import { buildJourneyTimeline, projectPlaybackStops, stopRouteProgress, timelineSegmentAt, visibleTimelineMarkerGroups } from './timeline.js';
 const photoMotion = new PhotoTransition();
 let photoExitPending = false;
 const playbackSpeeds = [.5, 1, 2, 3, 4, 5, 10, 20, 50];
 const speedLabel = speed => `${speed === .5 ? '0,5' : speed}×`;
+function setPlaybackSpeed(index) {
+  const lastIndex = playbackSpeeds.length - 1;
+  const selectedIndex = Math.max(0, Math.min(lastIndex, Math.round(index)));
+  const speed = playbackSpeeds[selectedIndex];
+  if (player) player.state.speed = speed;
+  const slider = $('speed-range');
+  slider.value = String(selectedIndex);
+  slider.setAttribute('aria-valuetext', speedLabel(speed));
+  $('speed-value').value = speedLabel(speed);
+  $('speed-up').disabled = selectedIndex === lastIndex;
+  $('speed-down').disabled = selectedIndex === 0;
+}
+function stepPlaybackSpeed(delta) {
+  const currentIndex = playbackSpeeds.indexOf(player.state.speed);
+  setPlaybackSpeed((currentIndex < 0 ? 1 : currentIndex) + delta);
+}
 
 const $ = id => document.getElementById(id);
 const text = (id, value) => { $(id).textContent = value ?? ''; };
-const generatedFilenameTitle = /^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/i;
-function photoDisplayTitle(photo, fallback = '') {
-  const title = photo?.title?.trim();
-  const pointTitle = fallback || (journey?.stages || []).flatMap(stage => stage.stops || []).find(stop => stop.photoIds?.includes(photo?.id))?.title;
-  return title && !generatedFilenameTitle.test(title) ? title : pointTitle || 'Erinnerung unterwegs';
-}
 const formatDay = stage => stage.isFullRoute ? 'GESAMTSTRECKE' : `TAG ${String(stage.day).padStart(2, '0')}`;
 const formatDate = value => value ? new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'long', timeZone: 'Europe/Berlin' }).format(new Date(value + 'T12:00:00')) : 'Datum noch offen';
 const dialogs = [...document.querySelectorAll('dialog')];
-let journey, player, map, routes, playbackStage, collage, journeyTimeline, currentPhotoIds = [], currentPhotoIndex = 0, lastStage = -1, lastSegmentId = '', selectedPointStageId = null, renderStatus = '', lastFrame = 0, noticeTimer, collageHideTimer, collageRevision = 0, selectedEditorStopId = null, editorBusy = false;
+let journey, player, map, routes, playbackStage, collage, journeyTimeline, currentPhotoIds = [], currentPhotoIndex = 0, currentGalleryStageId = null, currentGallerySleepPlaceOnly = false, currentEditorGalleryTarget = 'sleep', lastStage = -1, lastSegmentId = '', selectedPointStageId = null, renderStatus = '', lastFrame = 0, noticeTimer, collageHideTimer, collageRevision = 0, selectedEditorStopId = null, editorBusy = false;
 
 function announce(message) { text('live-region', message); }
 function notify(message) {
@@ -75,7 +85,15 @@ function showTimelineTooltip(items, clientX, progress, { interactive = false } =
       jump.addEventListener('click', () => {
         const target = Number.isFinite(item.progress) ? item.progress : item.segment?.end;
         if (!Number.isFinite(target)) return;
-        closeDialogs(); player.seek(target); announce(timelineItemSummary(item));
+        closeDialogs();
+        if (item.kind === 'photo') {
+          const stage = journey.stages.find(candidate => candidate.stops?.some(stop => stop.id === item.id));
+          const stop = stage?.stops.find(candidate => candidate.id === item.id);
+          if (stop && !stop.photoIds?.length) { player.seek(target); openEditor(stage, stop.id); return; }
+          const playbackStop = playbackStage.stops.find(candidate => candidate.id === item.id);
+          if (playbackStop) { player.openStop(playbackStop, { manual: true }); return; }
+        }
+        player.seek(target); announce(timelineItemSummary(item));
       });
       entry.append(jump);
     }
@@ -106,9 +124,46 @@ function activeDisplayStage() {
     || activeTimelineSegment(player.state.progress)?.stage
     || journey.stages.find(stage => stage.isFullRoute);
 }
+function pointStagePhotoPoint(stage) {
+  return stage?.stops?.find(stop => Array.isArray(stop.coordinates)) || null;
+}
+function stageAtRouteProgress(progress) {
+  const segment = timelineSegmentAt(journeyTimeline.segments, progress)
+    || journeyTimeline.segments.find(item => item.start >= progress)
+    || journeyTimeline.segments.at(-1);
+  return segment?.stage || journey.stages.find(item => item.isFullRoute);
+}
+function stageForPhotoStop(stop, stage) {
+  return stageAtRouteProgress(stopRouteProgress(stop, stage, journeyTimeline, routes[journeyTimeline.fullRouteIndex]));
+}
+function sleepPlaceMedia(stage) {
+  const linkedToStops = new Set((stage.stops || []).flatMap(stop => stop.photoIds || []));
+  return sortGalleryMedia(journey.photos.filter(photo => photo.stageId === stage.id && !photo.placeholder
+    && (photo.galleryTarget === 'sleep' || (!photo.galleryTarget && !linkedToStops.has(photo.id)))));
+}
 function syncPlaybackStops() {
   if (!playbackStage || !journeyTimeline) return;
-  playbackStage.stops = projectPlaybackStops(journey.stages, journeyTimeline);
+  const routeStops = projectPlaybackStops(journey.stages, journeyTimeline, routes[journeyTimeline.fullRouteIndex]);
+  const sleepStops = journeyTimeline.segments.flatMap(segment => {
+    const photos = sleepPlaceMedia(segment.stage);
+    return [{
+      id: `schlafplatz-${segment.id}`,
+      progress: Math.max(segment.start, segment.end - 1e-6),
+      stageId: segment.id,
+      galleryStageId: segment.id,
+      day: segment.day,
+      stageTitle: segment.title,
+      title: segment.sleepPlace,
+      sleepPlaceGallery: true,
+      ...(photos.length ? { photoIds: photos.map(photo => photo.id) } : {})
+    }];
+  });
+  playbackStage.stops = [...routeStops, ...sleepStops].sort((a, b) => a.progress - b.progress);
+}
+function refreshJourneyTimeline() {
+  journeyTimeline = buildJourneyTimeline(journey.stages, routes);
+  setupTimeline(journeyTimeline);
+  syncPlaybackStops();
 }
 function setActiveBookmark(segment) {
   const id = segment?.id || '';
@@ -121,15 +176,13 @@ function renderTimelineMarkers(model) {
   const width = markers.clientWidth || Math.max(0, $('route-timeline').clientWidth - 14);
   const spacing = matchMedia('(pointer: coarse)').matches ? 44 : 24;
   const groups = visibleTimelineMarkerGroups(model, width, spacing);
-  const signature = groups.map(group => group.key).join('||');
+  const signature = groups.map(group => group.items.map(item => `${item.kind}:${item.id}@${item.progress}:${item.title}:${item.description}`).join('|')).join('||');
   if (markers.dataset.layoutSignature === signature) return;
   const activeKey = markers.querySelector('.timeline-marker:focus')?.dataset.markerKeys?.split('|')[0];
   markers.replaceChildren();
   markers.dataset.layoutSignature = signature;
   for (const group of groups) {
-    const hasDay = group.items.some(item => item.kind === 'day');
-    const hasPhoto = group.items.some(item => item.kind === 'photo');
-    const button = element('button', `timeline-marker${hasDay ? ' is-day' : ''}${hasPhoto ? ' has-photo' : ''}${group.items.length > 1 ? ' is-cluster' : ''}${group.needsChoice ? ' needs-choice' : ''}`);
+    const button = element('button', `timeline-marker${group.items.length > 1 ? ' is-cluster' : ''}${group.needsChoice ? ' needs-choice' : ''}`);
     button.type = 'button';
     button.style.left = `${group.progress * 100}%`;
     button.dataset.markerKeys = group.key;
@@ -137,7 +190,9 @@ function renderTimelineMarkers(model) {
       ? `${group.items.length} nahe Routenmarken: ${group.items.map(timelineItemSummary).join(' ')}. Fokus oder Antippen zeigt die einzelnen Sprungziele.`
       : group.items.map(timelineItemSummary).join(' '));
     button.setAttribute('aria-describedby', 'timeline-tooltip');
-    if (group.items.length > 1) button.append(element('span', 'timeline-marker-count', String(group.items.length)));
+    const glyphs = element('span', 'timeline-marker-glyphs');
+    for (const item of group.items) glyphs.append(element('span', `timeline-marker-glyph is-${item.kind}`));
+    button.append(glyphs);
     const show = clientX => showTimelineTooltip(group.items, clientX, group.progress, { interactive: group.needsChoice });
     button.addEventListener('pointerenter', event => show(event.clientX));
     button.addEventListener('pointerleave', event => { if (event.pointerType !== 'touch') maybeHideTimelineTooltip(event); });
@@ -149,6 +204,14 @@ function renderTimelineMarkers(model) {
         show(button.getBoundingClientRect().left + button.offsetWidth / 2);
         announce(`${group.items.length} nahe Routenmarken. Wähle im Hinweis den gewünschten Punkt.`);
         return;
+      }
+      const item = group.items[0];
+      if (item?.kind === 'photo') {
+        const stage = journey.stages.find(candidate => candidate.stops?.some(stop => stop.id === item.id));
+        const stop = stage?.stops.find(candidate => candidate.id === item.id);
+        if (stop && !stop.photoIds?.length) { player.seek(item.progress); openEditor(stage, stop.id); return; }
+        const playbackStop = playbackStage.stops.find(candidate => candidate.id === item.id);
+        if (playbackStop) { player.openStop(playbackStop, { manual: true }); show(button.getBoundingClientRect().left + button.offsetWidth / 2); return; }
       }
       player.seek(group.progress);
       show(button.getBoundingClientRect().left + button.offsetWidth / 2);
@@ -196,23 +259,23 @@ function updateTimeline(state) {
 }
 function placeholder(photo) {
   const box = element('div', 'sample-image');
-  box.append(element('span', 'sample-symbol', '↟'), element('p', 'eyebrow', 'PLATZ FÜR DEINE ERINNERUNG'), element('h3', '', photo?.title || 'Dein Foto'), element('p', '', 'Hier erscheint später dein persönliches Foto.'));
+  box.append(element('span', 'sample-symbol', '↟'), element('p', 'eyebrow', 'PLATZ FÜR DEINE ERINNERUNG'), element('h3', '', 'Dein Foto'), element('p', '', 'Hier erscheint später dein persönliches Foto.'));
   return box;
 }
 function photoNode(photo, thumb = false) {
   if (!photo || photo.placeholder || !photo.file) return placeholder(photo);
   const isVideo = photo.mediaType === 'video' || /\.(mp4|webm|mov)$/i.test(photo.file);
   if (isVideo) {
-    if (thumb && photo.thumbnail) { const image = document.createElement('img'); image.src = '/' + photo.thumbnail; image.alt = photoDisplayTitle(photo); image.loading = 'lazy'; return image; }
+    if (thumb && photo.thumbnail) { const image = document.createElement('img'); image.src = '/' + photo.thumbnail; image.alt = 'Video'; image.loading = 'lazy'; return image; }
     if (thumb) return placeholder(photo);
     const video = document.createElement('video'); video.src = '/' + photo.file; video.controls = true; video.playsInline = true; video.preload = 'metadata';
     if (photo.thumbnail) video.poster = '/' + photo.thumbnail;
-    video.setAttribute('aria-label', photoDisplayTitle(photo));
+    video.setAttribute('aria-label', 'Video');
     return video;
   }
   const img = document.createElement('img');
   img.src = '/' + (thumb ? photo.thumbnail || photo.file : photo.file);
-  img.alt = photo.alt || photoDisplayTitle(photo, photo.caption); img.decoding = 'async';
+  img.alt = photo.alt || (photo.mediaType === 'video' ? 'Video' : 'Bild'); img.decoding = 'async';
   if (thumb) img.loading = 'lazy';
   img.addEventListener('error', () => { if (img.isConnected) { const box = placeholder({ title: 'Bild nicht verfügbar' }); box.querySelector('p:last-child').textContent = 'Bitte Bilddatei und Import prüfen.'; img.replaceWith(box); } }, { once: true });
   return img;
@@ -242,11 +305,13 @@ function layoutCollage() {
 }
 function renderCollage(state) {
   const root = $('photo-collage'), images = $('collage-images'), revision = ++collageRevision;
+  const sleepGallery = Boolean(state.stop?.sleepPlaceGallery);
+  root.dataset.sleepGallery = String(sleepGallery);
   const duration = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 400;
   clearTimeout(collageHideTimer);
   photoMotion.cancel(); photoExitPending = false;
   if (state.phase === 'hidden' || state.phase === 'waiting') {
-    if (state.phase === 'hidden') map?.endPhotoFocus();
+    map?.endPhotoFocus();
     if (root.contains(document.activeElement)) $('play-button').focus({ preventScroll: true });
     for (const card of images.children) { card.classList.remove('is-shown'); card.setAttribute('aria-hidden', 'true'); }
     root.classList.remove('is-visible'); root.inert = true; root.setAttribute('aria-hidden', 'true');
@@ -259,12 +324,19 @@ function renderCollage(state) {
   root.hidden = false; root.inert = false; root.setAttribute('aria-hidden', 'false');
   root.setAttribute('aria-busy', String(state.phase === 'loading'));
   $('main').classList.add('has-collage');
-  text('collage-kicker', `${state.stop.day ? timelineDayLabel(state.stop.day).toUpperCase() : formatDay(player.stage)} · FOTOSTOPP`);
+  text('collage-kicker', sleepGallery
+    ? `${formatDay(journey.stages.find(stage => stage.id === state.stop.galleryStageId) || player.stage)} · SCHLAFPLATZ`
+    : `${state.stop.day ? timelineDayLabel(state.stop.day).toUpperCase() : formatDay(player.stage)} · FOTOSTOPP`);
   text('collage-title', state.stop.title);
-  text('collage-location', state.stop.approximate ? '◌ Ungefährer Aufnahmeort' : '● Zugeordneter Aufnahmeort');
-  text('collage-count', state.phase === 'loading' ? 'Bilder werden geladen …' : state.phase === 'error' ? 'Bilder konnten nicht geladen werden.' : state.total ? `Bilder ${state.offset + 1}–${Math.min(state.total, state.offset + state.pageSize)} von ${state.total}` : 'Noch keine Bilder zugeordnet.');
-  $('collage-pages').hidden = state.total <= state.pageSize;
-  $('collage-previous').disabled = !state.hasPrevious; $('collage-next').disabled = !state.hasNext;
+  text('collage-count', state.phase === 'loading' ? 'Bilder werden geladen …' : state.phase === 'error' ? 'Bilder konnten nicht geladen werden.' : state.total ? `Bilder ${state.offset + 1}–${Math.min(state.total, state.offset + state.pageSize)} von ${state.total}` : sleepGallery ? 'Noch keine Bilder am Schlafplatz.' : 'Noch keine Bilder zugeordnet.');
+  for (const previous of root.querySelectorAll('.collage-float-previous')) previous.disabled = !state.hasPrevious || state.phase !== 'visible';
+  for (const next of root.querySelectorAll('.collage-float-next')) {
+    next.disabled = state.phase !== 'visible';
+    next.setAttribute('aria-label', state.hasNext ? 'Nächstes Medium' : 'Letztes Medium ansehen und Route fortsetzen');
+  }
+  $('collage-edit-stop').hidden = sleepGallery ? false : !journey.stages.some(stage => stage.stops?.some(stop => stop.id === state.stop.id));
+  $('collage-edit-stop').textContent = sleepGallery ? 'Bilder bearbeiten' : 'Fotopunkt bearbeiten';
+  $('collage-continue').hidden = sleepGallery;
   if (state.phase === 'visible') {
     const oldCards = [...images.children];
     for (const card of oldCards) { card.classList.remove('is-shown'); card.setAttribute('aria-hidden', 'true'); }
@@ -272,25 +344,36 @@ function renderCollage(state) {
       const card = element('figure', `collage-card collage-slot-${index}`);
       card.style.setProperty('--photo-delay', `${index * 150}ms`);
       const visual = element('div', 'collage-visual'); visual.append(node);
+      const pages = element('div', 'collage-floating-pages');
+      const previous = element('button', 'collage-float-nav collage-float-previous', '←');
+      previous.type = 'button'; previous.disabled = !state.hasPrevious;
+      previous.setAttribute('aria-label', 'Vorheriges Medium');
+      previous.addEventListener('click', event => { event.stopPropagation(); collage.move(-1); });
+      const next = element('button', 'collage-float-nav collage-float-next', '→');
+      next.type = 'button'; next.disabled = state.phase !== 'visible';
+      next.setAttribute('aria-label', state.hasNext ? 'Nächstes Medium' : 'Letztes Medium ansehen und Route fortsetzen');
+      next.addEventListener('click', event => { event.stopPropagation(); advanceCollage(); });
+      pages.append(previous, next); visual.append(pages);
       const close = element('button', 'collage-close', '×');
       close.type = 'button';
-      close.setAttribute('aria-label', 'Foto schließen und Reise fortsetzen');
-      close.addEventListener('click', event => { event.stopPropagation(); finishPhoto(); });
-      const caption = element('figcaption');
-      caption.append(element('strong', '', photoDisplayTitle(photo, state.stop.title)));
-      const copy = photo?.caption || state.stop.caption;
-      if (copy) caption.append(element('span', '', copy));
-      card.append(visual, close, caption); images.append(card); return card;
+      close.setAttribute('aria-label', sleepGallery ? 'Schlafplatzbilder ausblenden' : 'Foto schließen und Reise fortsetzen');
+      close.addEventListener('click', event => { event.stopPropagation(); finishPhoto(!sleepGallery); });
+      card.append(visual, close); images.append(card); return card;
     });
     layoutCollage();
     // Establish the start styles once; CSS handles stagger and interrupted fades.
     void images.offsetWidth;
     root.classList.add('is-visible'); cards.forEach(card => card.classList.add('is-shown'));
-    map.beginPhotoFocus(state.stop);
+    const focusStop = sleepGallery && !Number.isFinite(state.stop.progress)
+      ? { ...state.stop, progress: journeyTimeline.segments.find(segment => segment.id === state.stop.galleryStageId)?.end }
+      : state.stop;
+    if (Number.isFinite(focusStop.progress)) map.beginPhotoFocus(focusStop);
     const from = photoPreviewRect(state.stop.id);
     cards.forEach(card => photoMotion.move(card, from, card.getBoundingClientRect(), { reduced: matchMedia('(prefers-reduced-motion: reduce)').matches }));
     setTimeout(() => oldCards.forEach(card => card.remove()), duration);
-    announce(`Fotostopp: ${state.stop.title}. ${$('collage-count').textContent}. Mit Leertaste den Flug fortsetzen.`);
+    announce(sleepGallery
+      ? `Schlafplatzbilder: ${state.stop.title}. ${$('collage-count').textContent}.`
+      : `Fotostopp: ${state.stop.title}. ${$('collage-count').textContent}. Mit Leertaste den Flug fortsetzen.`);
   } else { root.classList.add('is-visible'); layoutCollage(); }
 }
 function stopPreview(stop) {
@@ -301,7 +384,7 @@ function stopPreview(stop) {
   if (photo?.file && !photo.placeholder) { const image = photoNode(photo, true); image.draggable = false; visual.append(image); }
   else visual.append(element('span', 'map-photo-placeholder', '↟'));
   button.append(visual, element('span', 'map-photo-name', stop.title));
-  button.title = `${stop.title}${stop.approximate ? ' · ungefährer Fotoort' : ''}`;
+  button.title = stop.title;
   return button;
 }
 function photoPreviewRect(id) {
@@ -314,6 +397,11 @@ async function finishPhoto(play = true) {
   if (photoExitPending) return;
   if (!collage.active) { if (play) player.play(); return; }
   photoExitPending = true;
+  if (collage.stop.sleepPlaceGallery) {
+    collage.hide(); photoExitPending = false;
+    if (play) player.play();
+    return;
+  }
   const revision = collageRevision, id = collage.stop.id;
   const card = $('collage-images').querySelector('.is-shown');
   const completed = card ? await photoMotion.move(card, photoPreviewRect(id), card.getBoundingClientRect(), { reverse: true, reduced: matchMedia('(prefers-reduced-motion: reduce)').matches }) : true;
@@ -321,6 +409,20 @@ async function finishPhoto(play = true) {
   map.endPhotoFocus();
   collage.hide();
   if (play) player.play(); else player.closeStop();
+}
+function advanceCollage() {
+  if (!collage?.active || collage.phase !== 'visible') return;
+  if (!collage.hasNext) { finishPhoto(); return; }
+  collage.move(1);
+}
+function activateStop(stop) {
+  const stage = journey.stages.find(item => item.stops?.some(candidate => candidate.id === stop.id));
+  if (!stop.photoIds?.length) {
+    player.seek(stop.progress);
+    if (stage) openEditor(stage, stop.id);
+    return;
+  }
+  player.openStop(stop, { manual: true });
 }
 function sortedPhotos(stageId) {
   const actual = journey.photos.filter(p => p.stageId === stageId && !p.placeholder);
@@ -347,7 +449,7 @@ function buildStageList() {
     const button = element('button', `stage-button${pointStage ? ' is-point-stage' : ''}`); button.dataset.bookmark = stage.id;
     const label = element('span');
     const sleepPlace = stage.overnight?.trim() || stage.end;
-    label.append(element('span', 'stage-name', pointStage ? stage.title : stage.end), element('span', 'stage-sub', pointStage ? `Fester Fotopunkt · ${stage.location.name}` : `Start: ${stage.start} · Schlafort: ${sleepPlace}`));
+    label.append(element('span', 'stage-name', pointStage ? stage.title : stage.end), element('span', 'stage-sub', pointStage ? 'Eigenständiger Fotopunkt' : `Start: ${stage.start} · Schlafort: ${sleepPlace}`));
     button.append(element('span', 'stage-number', String(stage.day).padStart(2, '0')), label);
     button.setAttribute('aria-current', String(selectedPointStageId === stage.id || (!selectedPointStageId && activeTimelineSegment(player?.state.progress || 0)?.id === stage.id)));
     button.addEventListener('click', () => {
@@ -366,8 +468,8 @@ function selectPointStage(stage) {
   player.pause(); player.closeStop(); collage.hide(); closeDialogs();
   selectedPointStageId = stage.id; lastSegmentId = '';
   render({ ...player.state }, 'point-select');
-  map.focusPoint(stage.location.coordinates);
-  announce(`${stage.title}. Fester Fotopunkt mit eigener Bildergalerie; die Route bleibt unverändert.`);
+  map.focusPoint(pointStageCoordinates(stage));
+  announce(`${stage.title}. Eigenständiger Fotopunkt mit eigener Mediengalerie; die Route bleibt unverändert.`);
 }
 function render(state, reason) {
   const stage = playbackStage;
@@ -378,16 +480,17 @@ function render(state, reason) {
   const pointStage = journey?.stages.find(item => item.id === selectedPointStageId);
   const activeStage = pointStage || segment?.stage || stage;
   const activeBookmarkId = pointStage?.id || segment?.id || '';
+  map?.setOverviewMode(!state.started && !pointStage && stage.isFullRoute);
   if (lastStage !== state.stageIndex || lastSegmentId !== activeBookmarkId || reason === 'initial') {
     lastStage = state.stageIndex;
     if (reason === 'initial' || reason === 'stage') map.setStage(state.stageIndex, { fitOverview: reason === 'initial' && !state.started });
     lastSegmentId = '';
     setActiveBookmark(pointStage || segment);
     const stageType = activeStage.routeVariant ? 'ROUTENVARIANTE' : activeStage.referenceSection ? 'GPX-REFERENZ' : 'ETAPPENABSCHNITT';
-    text('stage-kicker', pointStage ? 'TAG 00 · STANDPUNKT' : `${formatDay(activeStage)} · ${activeStage.date ? formatDate(activeStage.date) : stageType}`);
+    text('stage-kicker', pointStage ? 'TAG 00 · FOTOPUNKT' : `${formatDay(activeStage)} · ${activeStage.date ? formatDate(activeStage.date) : stageType}`);
     text('stage-title', activeStage.title); text('stage-description', activeStage.description);
     if (pointStage) $('stage-facts').replaceChildren(
-      element('span', '', `Fester Standpunkt · ${pointStage.location.name}`),
+      element('span', '', 'Eigenständiger Fotopunkt · keine Verbindung zur Route'),
       element('span', '', `${sortedPhotos(pointStage.id).filter(photo => !photo.placeholder).length} eigene Fotos`)
     );
     else $('stage-facts').replaceChildren(
@@ -395,7 +498,7 @@ function render(state, reason) {
       element('span', '', activeStage.isFullRoute ? '27 Tages-Lesezeichen · Ziel Markusplatz' : `${sortedPhotos(activeStage.id).filter(photo => !photo.placeholder).length} eigene Fotos`)
     );
     $('gallery-button').hidden = Boolean(activeStage.isFullRoute);
-    text('route-caption', pointStage ? `Fester Fotopunkt · ${pointStage.location.name} · keine zusätzliche Route` : activeStage.routeVariant ? `Rekonstruierte Variante über ${activeStage.routeVariant} · keine persönliche GPS-Aufzeichnung` : activeStage.isFullRoute ? 'Eine durchgehende Route aus allen 27 Tagesetappen · München bis Markusplatz' : activeStage.routeProvenance?.kind === 'schematic' ? 'Schematischer Beispielverlauf · keine tatsächliche Wanderaufzeichnung' : activeStage.routeProvenance?.kind === 'recorded' ? 'Route aus bereitgestellter GPS-Aufzeichnung' : activeStage.referenceSection ? 'GPX-Referenzabschnitt auf der durchgehenden Gesamtstrecke' : 'Rekonstruierter Tagesabschnitt · anhand deiner Etappen abzugleichen');
+    text('route-caption', pointStage ? 'Eigenständiger Fotopunkt · ohne Verbindung zur Route' : activeStage.routeVariant ? `Rekonstruierte Variante über ${activeStage.routeVariant} · keine persönliche GPS-Aufzeichnung` : activeStage.isFullRoute ? 'Eine durchgehende Route aus allen 27 Tagesetappen · München bis Markusplatz' : activeStage.routeProvenance?.kind === 'schematic' ? 'Schematischer Beispielverlauf · keine tatsächliche Wanderaufzeichnung' : activeStage.routeProvenance?.kind === 'recorded' ? 'Route aus bereitgestellter GPS-Aufzeichnung' : activeStage.referenceSection ? 'GPX-Referenzabschnitt auf der durchgehenden Gesamtstrecke' : 'Rekonstruierter Tagesabschnitt · anhand deiner Etappen abzugleichen');
     text('player-kicker', `${formatDay(stage)} · ${stage.start.toLocaleUpperCase('de')}`);
     text('player-title', stage.title);
     text('player-time', segment ? `${String(segment.day).padStart(2, '0')} / ${String(journey.totalDays).padStart(2, '0')} Tage` : 'Gesamtstrecke');
@@ -404,9 +507,7 @@ function render(state, reason) {
   $('route-progress').value = String(Math.round(state.progress * 1000));
   updateTimeline(state);
   const speedIndex = playbackSpeeds.indexOf(state.speed);
-  $('speed-range').value = String(speedIndex < 0 ? 1 : speedIndex);
-  $('speed-range').setAttribute('aria-valuetext', speedLabel(state.speed));
-  $('speed-value').value = speedLabel(state.speed);
+  setPlaybackSpeed(speedIndex < 0 ? 1 : speedIndex);
   if (reason === 'pause') map.pauseCamera();
   if (reason === 'stop-jump' || reason === 'seek' || reason === 'route-seek') map.focusStop(state.progress);
   else map.setProgress(state.progress, state.started && state.mode === 'presentation' && (state.status === 'playing' || reason === 'seek' || reason === 'stop'), Math.max(.016, (performance.now() - lastFrame) / 1000));
@@ -418,48 +519,118 @@ function render(state, reason) {
   $('play-button').textContent = state.status === 'playing' ? 'Ⅱ' : '▶';
   $('play-button').setAttribute('aria-label', state.status === 'playing' ? 'Flug pausieren' : state.status === 'stage-end' ? 'Gesamtstrecke erneut starten' : 'Flug starten');
   const status = { ready: 'Bereit zum Aufbruch', playing: 'Unterwegs …', paused: 'Du bestimmst das Tempo', stop: 'Zeit für eine Geschichte', 'stage-end': 'Am Markusplatz angekommen · nochmal starten?' }[state.status];
-  text('player-status', pointStage ? 'Standpunkt ausgewählt · Route pausiert' : state.mode === 'explore' ? 'Frei erkunden' : status);
+  text('player-status', pointStage ? 'Fotopunkt ausgewählt · Route pausiert' : state.mode === 'explore' ? 'Frei erkunden' : status);
   map.setExplore(state.mode === 'explore');
   if (reason === 'mode' && state.mode === 'presentation') map.setProgress(state.progress, state.started, .1);
   if (state.stopId && ['stop', 'stop-jump', 'mode'].includes(reason)) {
     const stop = player.stops.find(s => s.id === state.stopId);
     if (stop) showStop(stop);
-  } else if (!state.stopId || state.status !== 'stop') collage.hide();
+  } else if ((!state.stopId || state.status !== 'stop') && !collage.stop?.sleepPlaceGallery) collage.hide();
   if (renderStatus !== state.status || ['stage', 'mode'].includes(reason)) { announce(`${activeStage.title}. ${status}`); renderStatus = state.status; }
   if (reason !== 'tick') preloadNext();
 }
 function showStop(stop) {
-  collage.queue(stop, stop.photoIds.map(id => journey.photos.find(photo => photo.id === id)).filter(Boolean));
+  collage.queue(stop, (stop.photoIds || []).map(id => journey.photos.find(photo => photo.id === id)).filter(Boolean));
 }
 function renderPhoto() {
   const photo = journey.photos.find(p => p.id === currentPhotoIds[currentPhotoIndex]);
   $('photo-visual').replaceChildren(photoNode(photo));
-  text('photo-title', photoDisplayTitle(photo));
-  text('photo-caption', photo?.caption || '');
-  text('photo-credit', photo?.credit || (photo?.placeholder ? 'Demonstration · deine Bilder folgen nach dem Import.' : photo?.capturedAt ? `Aufgenommen: ${photo.capturedAt.replace('T', ' ').slice(0, 16)}` : ''));
   text('photo-count', `${currentPhotoIndex + 1} / ${currentPhotoIds.length}`);
   $('photo-previous').disabled = currentPhotoIndex === 0; $('photo-next').disabled = currentPhotoIndex === currentPhotoIds.length - 1;
   $('continue-button').textContent = 'Zurück zur Tagesgalerie ↗';
 }
-function openGallery() {
-  const stage = activeDisplayStage();
+function openGallery(stage = activeDisplayStage(), { sleepPlaceOnly = false } = {}) {
   if (!stage) return;
   player.pause(); player.closeStop(); collage.hide();
-  text('gallery-kicker', stage.isPointStage ? 'TAG 00 · STANDPUNKT' : `${formatDay(stage)} · ${formatDate(stage.date)}`);
-  text('gallery-title', stage.title);
-  text('gallery-description', stage.isPointStage ? `Fotos vom festen Standpunkt ${stage.location.name}.` : 'Alle Bilder dieses Tages. Nur ausgewählte Fotostopps sind auf der Route verortet.');
-  const photos = sortedPhotos(stage.id); $('gallery-grid').replaceChildren();
-  if (!photos.length) $('gallery-grid').append(element('p', 'empty-state', stage.isPointStage ? 'Für diesen Standpunkt sind noch keine Fotos importiert.' : 'Für diesen Tag sind noch keine Fotos importiert. Ergänze das Etappendatum und starte den Fotoimport.'));
+  currentGalleryStageId = stage.id;
+  currentGallerySleepPlaceOnly = sleepPlaceOnly && !stage.isPointStage;
+  const sleepPlace = stage.overnight?.trim() || stage.end;
+  text('gallery-kicker', stage.isPointStage ? 'TAG 00 · FOTOPUNKT' : currentGallerySleepPlaceOnly ? `${formatDay(stage)} · SCHLAFPLATZ` : `${formatDay(stage)} · ${formatDate(stage.date)}`);
+  text('gallery-title', currentGallerySleepPlaceOnly ? sleepPlace : stage.title);
+  text('gallery-description', stage.isPointStage
+    ? `Medien am eigenständigen Fotopunkt „${stage.title}“.`
+    : currentGallerySleepPlaceOnly
+      ? 'Bilder direkt am Schlafplatz. Sie sind keinem Fotopunkt auf der Route zugeordnet.'
+      : 'Alle Bilder dieses Tages. Fotopunkte auf der Route sind zusätzlich über ihre Rauten erreichbar.');
+  const linkedToStops = new Set((stage.stops || []).flatMap(stop => stop.photoIds || []));
+  const stopPhotoOrder = new Map();
+  (stage.stops || []).forEach((stop, stopIndex) => (stop.photoIds || []).forEach((photoId, mediaIndex) => {
+    stopPhotoOrder.set(photoId, { progress: stop.progress ?? stopIndex, stopIndex, mediaIndex });
+  }));
+  const stagePhotos = journey.photos.filter(photo => photo.stageId === stage.id && !photo.placeholder);
+  const filteredPhotos = stagePhotos
+    .filter(photo => !currentGallerySleepPlaceOnly
+      || photo.galleryTarget === 'sleep'
+      || (!photo.galleryTarget && !linkedToStops.has(photo.id)));
+  const photos = currentGallerySleepPlaceOnly
+    ? sortGalleryMedia(filteredPhotos)
+    : filteredPhotos.sort((a, b) => {
+      const aStop = stopPhotoOrder.get(a.id), bStop = stopPhotoOrder.get(b.id);
+      if (aStop || bStop) {
+        if (!aStop) return 1;
+        if (!bStop) return -1;
+        return aStop.progress - bStop.progress || aStop.stopIndex - bStop.stopIndex || aStop.mediaIndex - bStop.mediaIndex;
+      }
+      return (a.capturedAt || '').localeCompare(b.capturedAt || '') || a.id.localeCompare(b.id);
+    });
+  $('gallery-add-media').textContent = stage.isPointStage ? 'Medien zum Fotopunkt hinzufügen' : 'Bilder am Schlafplatz hinzufügen';
+  $('gallery-grid').replaceChildren();
+  if (!photos.length) $('gallery-grid').append(element('p', 'empty-state', stage.isPointStage
+    ? 'Für diesen Fotopunkt sind noch keine Medien vorhanden.'
+    : currentGallerySleepPlaceOnly
+      ? `Für ${sleepPlace} sind noch keine Schlafplatzbilder vorhanden.`
+      : 'Für diesen Tag sind noch keine Bilder vorhanden.'));
   for (const photo of photos) {
     const button = element('button', 'gallery-item'), frame = element('div', 'gallery-thumb'); frame.append(photoNode(photo, true));
-    button.append(frame, element('strong', '', photoDisplayTitle(photo)), element('span', '', photo.placeholder ? 'Beispiel · dein Foto folgt' : photo.capturedAt ? photo.capturedAt.slice(11, 16) + ' Uhr' : 'Zeit noch offen'));
+    button.append(frame);
+    if (photo.capturedAt) button.append(element('span', 'gallery-time', photo.capturedAt.slice(11, 16) + ' Uhr'));
     button.addEventListener('click', () => {
+      if (!stage.isPointStage && (photo.galleryTarget === 'sleep' || (!photo.galleryTarget && !linkedToStops.has(photo.id)))) {
+        openSleepPlaceGallery(stage, photo.id);
+        return;
+      }
       currentPhotoIds = photos.map(p => p.id); currentPhotoIndex = currentPhotoIds.indexOf(photo.id);
-      text('photo-kicker', `${formatDay(stage)} · ${stage.isPointStage ? 'STANDPUNKT' : 'TAGESGALERIE'}`); text('photo-location', stage.isPointStage ? `Standpunkt · ${stage.location.name}` : 'Der Tagesetappe zugeordnet · kein einzelner Standort'); renderPhoto(); openDialog('photo-dialog');
+      text('photo-kicker', `${formatDay(stage)} · ${stage.isPointStage ? 'FOTOPUNKT' : currentGallerySleepPlaceOnly ? 'SCHLAFPLATZ' : 'TAGESGALERIE'}`);
+      renderPhoto(); openDialog('photo-dialog');
     });
     $('gallery-grid').append(button);
   }
   openDialog('gallery-dialog');
+}
+function openSleepPlaceGallery(stage, initialPhotoId = null) {
+  if (!stage || stage.isPointStage || stage.isFullRoute) return;
+  if (player.state.status === 'stop') player.closeStop();
+  collage.hide(); closeDialogs();
+  const photos = sleepPlaceMedia(stage);
+  const sleepPlace = stage.overnight?.trim() || stage.end;
+  const segment = journeyTimeline.segments.find(item => item.id === stage.id);
+  collage.queue({
+    id: `schlafplatz-${stage.id}`,
+    title: sleepPlace,
+    progress: segment ? Math.max(segment.start, segment.end - 1e-6) : 0,
+    day: stage.day,
+    galleryStageId: stage.id,
+    sleepPlaceGallery: true,
+    photoIds: photos.map(photo => photo.id)
+  }, photos);
+  const initialIndex = photos.findIndex(photo => photo.id === initialPhotoId);
+  if (initialIndex > 0) collage.move(initialIndex);
+  collage.arrive();
+}
+function selectSleepPlace(stageId) {
+  const stage = journey.stages.find(item => item.id === stageId);
+  const segment = journeyTimeline.segments.find(item => item.id === stageId);
+  if (!stage || !segment) return;
+  const sleepStop = playbackStage.stops.find(stop => stop.id === `schlafplatz-${stageId}`);
+  const progress = sleepStop?.progress ?? Math.max(segment.start, segment.end - 1e-6);
+  if (sleepStop) {
+    player.openStop(sleepStop, { manual: true });
+    map.beginPhotoFocus(sleepStop);
+  } else {
+    player.seek(progress);
+    openSleepPlaceGallery(stage);
+    map.focusBookmark(progress, { zoom: 14.5, pitch: 38 });
+  }
 }
 function story(type) {
   player.pause(); const item = journey.stories[type];
@@ -493,70 +664,230 @@ function storageSet(value) { try { if (value) localStorage.setItem('traumpfad.ma
 
 function editorStageIndex() { return Number($('editor-stage').value || player.state.stageIndex); }
 function editorStop() { return journey.stages[editorStageIndex()]?.stops?.find(stop => stop.id === selectedEditorStopId) || null; }
+function sortGalleryMedia(media) {
+  return media.map((photo, index) => ({ photo, index, order: Number.isFinite(photo.galleryOrder) ? photo.galleryOrder : index }))
+    .sort((a, b) => a.order - b.order || a.index - b.index)
+    .map(({ photo }) => photo);
+}
+function editorGalleryMedia(stage, target) {
+  const linkedToStops = new Set((stage.stops || []).flatMap(stop => stop.photoIds || []));
+  return sortGalleryMedia(journey.photos.filter(photo => photo.stageId === stage.id && !photo.placeholder && !linkedToStops.has(photo.id)
+    && (stage.isPointStage ? photo.galleryTarget !== 'sleep' : target === 'sleep'
+      ? photo.galleryTarget === 'sleep' || !photo.galleryTarget
+      : photo.galleryTarget === target)));
+}
+function moveEditorMedia(stage, stop, media, fromIndex, toIndex) {
+  if (fromIndex < 0 || toIndex < 0 || fromIndex >= media.length || toIndex >= media.length || fromIndex === toIndex) return false;
+  if (stop) {
+    const photoIds = stop.photoIds || [];
+    const [photoId] = photoIds.splice(fromIndex, 1);
+    photoIds.splice(toIndex, 0, photoId);
+    stop.photoIds = photoIds;
+  } else {
+    const reordered = [...media], [photo] = reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, photo);
+    reordered.forEach((item, index) => { item.galleryOrder = index; });
+  }
+  syncPlaybackStops(); map.refreshStops(); renderEditor();
+  text('editor-message', 'Reihenfolge geändert. Änderungen noch speichern.');
+  $('editor-message').dataset.error = 'false';
+  return true;
+}
 function renderEditor() {
   if (!journey || !$('editor-stage')) return;
   const stageIndex = editorStageIndex(), stage = journey.stages[stageIndex];
   text('editor-intro', stage.isPointStage
-    ? 'Tag 00 ist ein fester Standpunkt. Du kannst ihm Bilder und Videos zuordnen; seine Position bleibt unverändert.'
-    : 'Lege Fotopunkte auf der Route an, verschiebe sie auf der Karte und ordne Bilder oder Videos zu. Die Änderungen werden lokal auf diesem Mac gespeichert.');
+    ? 'Tag 00 ist ein eigenständiger Fotopunkt ohne Verbindung zur Route. Du kannst ihn auf der Karte verschieben und ihm Medien zuordnen.'
+    : stage.isFullRoute
+      ? 'Fotopunkte liegen an ihrer gewählten Kartenposition. Die Route pausiert am nächsten Routenpunkt.'
+      : 'Lege eigene Fotopunkte auf der Route an oder füge Bilder direkt am Schlafplatz hinzu. Die Änderungen werden lokal auf diesem Mac gespeichert.');
   $('editor-stop').replaceChildren();
-  const empty = element('option', '', stage.stops.length ? 'Fotopunkt auswählen' : 'Noch keine Fotopunkte'); empty.value = ''; $('editor-stop').append(empty);
-  for (const stop of stage.stops) { const option = element('option', '', `${stop.title || 'Fotopunkt'} · ${stop.photoIds?.length || 0} Medien`); option.value = stop.id; $('editor-stop').append(option); }
-  if (!stage.stops.some(stop => stop.id === selectedEditorStopId)) selectedEditorStopId = stage.stops[0]?.id || null;
+  const targetName = currentEditorGalleryTarget === 'standpoint'
+    ? `Bilder am Fotopunkt · ${stage.title}`
+    : currentEditorGalleryTarget === 'day'
+      ? `Bilder zur Tagesgalerie · ${stage.isFullRoute ? stage.title : formatDay(stage)}`
+      : `Bilder am Schlafplatz · ${stage.overnight?.trim() || stage.end} (ohne Routenraute)`;
+  if (!stage.isPointStage) { const empty = element('option', '', targetName); empty.value = ''; $('editor-stop').append(empty); }
+  if (currentEditorGalleryTarget !== 'sleep') for (const stop of stage.stops) { const option = element('option', '', `${stop.title || 'Fotopunkt'} · ${stop.photoIds?.length || 0} Medien`); option.value = stop.id; $('editor-stop').append(option); }
+  if (stage.isPointStage && !selectedEditorStopId) selectedEditorStopId = pointStagePhotoPoint(stage)?.id || null;
+  if (!stage.stops.some(stop => stop.id === selectedEditorStopId)) selectedEditorStopId = null;
   $('editor-stop').value = selectedEditorStopId || '';
   const stop = editorStop();
+  text('editor-stop-label', (Boolean(stop) || currentEditorGalleryTarget === 'standpoint') ? 'Fotopunkt' : 'Bilder-Ziel');
+  const sleepPlace = stage.overnight?.trim() || stage.end;
+  text('editor-title', stop
+    ? stop.title || 'Fotopunkt'
+    : stage.isPointStage
+      ? stage.title
+      : currentEditorGalleryTarget === 'sleep'
+        ? `Bilder am Schlafplatz · ${sleepPlace}`
+        : currentEditorGalleryTarget === 'standpoint'
+          ? `Bilder am Fotopunkt · ${stage.title}`
+          : currentEditorGalleryTarget === 'day'
+            ? `Bilder zur Tagesgalerie · ${stage.isFullRoute ? stage.title : formatDay(stage)}`
+            : 'Fotopunkt hinzufügen');
   $('editor-stop-title').value = stop?.title || '';
   $('editor-stop-caption').value = stop?.caption || '';
-  $('editor-add-stop').disabled = Boolean(stage.isPointStage);
-  $('editor-add-stop').title = stage.isPointStage ? 'Der Tag-00-Fotopunkt bleibt an seinem festen Standpunkt.' : '';
-  $('editor-move-stop').disabled = !stop || Boolean(stage.isPointStage);
-  $('editor-move-stop').title = stage.isPointStage ? 'Der Tag-00-Fotopunkt bleibt an seinem festen Standpunkt.' : '';
+  document.querySelector('.editor-fields').hidden = !stop;
+  const editingSleepGallery = currentEditorGalleryTarget === 'sleep' && !stop;
+  $('editor-add-stop').hidden = Boolean(stop) || Boolean(stage.isPointStage) || editingSleepGallery;
+  $('editor-add-stop').disabled = Boolean(stop) || Boolean(stage.isPointStage) || editingSleepGallery;
+  $('editor-add-stop').title = stage.isPointStage ? 'Tag 00 ist ein eigener Fotopunkt.' : '';
+  $('editor-move-stop').hidden = !stop || editingSleepGallery;
+  $('editor-move-stop').disabled = !stop;
+  $('editor-move-stop').textContent = stage.isPointStage ? 'Fotopunkt auf Karte verschieben ↗' : 'Ausgewählten Punkt auf Karte verschieben ↗';
+  $('editor-move-stop').title = stage.isPointStage ? 'Klicke anschließend auf die neue Position des Fotopunkts.' : '';
+  $('editor-delete-stop').hidden = !stop || Boolean(stage.isPointStage);
   $('editor-media-list').replaceChildren();
-  for (const photo of (stop?.photoIds || []).map(id => journey.photos.find(item => item.id === id)).filter(Boolean)) {
-    const label = element('li', '', `${photo.mediaType === 'video' ? 'Video' : 'Bild'} · ${photoDisplayTitle(photo, stop.title)}`);
-    $('editor-media-list').append(label);
-  }
+  const media = stop
+    ? (stop.photoIds || []).map(id => journey.photos.find(item => item.id === id)).filter(Boolean)
+    : editorGalleryMedia(stage, currentEditorGalleryTarget);
+  media.forEach((photo, index) => {
+    const sortable = media.length > 1;
+    const row = element('li', `editor-media-item${sortable ? ' is-sortable' : ''}`), thumb = element('span', 'editor-media-thumb');
+    thumb.append(photoNode(photo, true));
+    const name = element('span', 'editor-media-name', `${photo.mediaType === 'video' ? 'Video' : 'Bild'} ${index + 1}`);
+    const remove = element('button', 'text-button editor-media-remove', 'Entfernen');
+    remove.type = 'button'; remove.setAttribute('aria-label', `${name.textContent} entfernen`);
+    let handle = null;
+    if (sortable) {
+      handle = element('button', 'editor-media-drag-handle', '⠿');
+      handle.type = 'button'; handle.draggable = true; handle.dataset.mediaId = photo.id;
+      handle.setAttribute('aria-label', `${name.textContent} verschieben. Mit Pfeil nach oben oder unten sortieren.`);
+      handle.title = 'Ziehen zum Sortieren · ↑ / ↓ verschiebt das Medium';
+      handle.addEventListener('keydown', event => {
+        if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+        event.preventDefault();
+        const fromIndex = media.findIndex(item => item.id === photo.id);
+        const toIndex = fromIndex + (event.key === 'ArrowUp' ? -1 : 1);
+        if (moveEditorMedia(stage, stop, media, fromIndex, toIndex)) {
+          document.querySelectorAll('.editor-media-drag-handle').forEach(button => {
+            if (button.dataset.mediaId === photo.id) button.focus();
+          });
+        }
+      });
+      handle.addEventListener('dragstart', event => {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', photo.id);
+        row.classList.add('is-dragging');
+      });
+      handle.addEventListener('dragend', () => {
+        document.querySelectorAll('.editor-media-item').forEach(item => item.classList.remove('is-dragging', 'is-drop-before', 'is-drop-after'));
+      });
+      row.addEventListener('dragover', event => {
+        if (!event.dataTransfer.types.includes('text/plain')) return;
+        event.preventDefault(); event.dataTransfer.dropEffect = 'move';
+        const after = event.clientY > row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2;
+        row.classList.toggle('is-drop-before', !after); row.classList.toggle('is-drop-after', after);
+      });
+      row.addEventListener('dragleave', event => {
+        if (!row.contains(event.relatedTarget)) row.classList.remove('is-drop-before', 'is-drop-after');
+      });
+      row.addEventListener('drop', event => {
+        event.preventDefault();
+        const sourceId = event.dataTransfer.getData('text/plain');
+        const fromIndex = media.findIndex(item => item.id === sourceId), targetIndex = media.findIndex(item => item.id === photo.id);
+        const after = event.clientY > row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2;
+        let toIndex = targetIndex + (after ? 1 : 0);
+        if (fromIndex < toIndex) toIndex -= 1;
+        moveEditorMedia(stage, stop, media, fromIndex, toIndex);
+      });
+    }
+    remove.addEventListener('click', () => {
+      if (stop) {
+        stop.photoIds = stop.photoIds.filter(id => id !== photo.id);
+        const referenced = journey.stages.some(candidate => candidate.stops?.some(other => other.photoIds?.includes(photo.id)));
+        if (!referenced) {
+          photo.stageId = stage.isPointStage ? stage.id : (stageForPhotoStop(stop, stage) || stage).id;
+          photo.galleryTarget = stage.isPointStage ? 'standpoint' : 'day';
+        }
+      } else {
+        for (const candidate of journey.stages) for (const other of candidate.stops || []) other.photoIds = (other.photoIds || []).filter(id => id !== photo.id);
+        journey.photos = journey.photos.filter(item => item.id !== photo.id);
+        editorGalleryMedia(stage, currentEditorGalleryTarget).forEach((item, nextIndex) => { item.galleryOrder = nextIndex; });
+      }
+      syncPlaybackStops(); map.refreshStops(); renderEditor();
+      text('editor-message', stop ? stage.isPointStage
+        ? 'Medium vom Fotopunkt entfernt. Es bleibt in der Fotopunkt-Galerie; Änderungen noch speichern.'
+        : 'Medium aus dem Fotopunkt entfernt. Es bleibt in der Tagesgalerie; Änderungen noch speichern.'
+        : 'Medium aus der App entfernt. Die Originaldatei bleibt auf diesem Mac; Änderungen noch speichern.');
+    });
+    row.append(...(handle ? [handle] : []), thumb, name, remove); $('editor-media-list').append(row);
+  });
   document.querySelectorAll('.map-photo-preview').forEach(button => button.classList.toggle('is-selected', button.dataset.stopId === selectedEditorStopId));
 }
-function openEditor() {
+function openEditor(stage = activeDisplayStage(), stopId = null, galleryTarget = null) {
+  if (!stage) return;
   player.pause(); player.closeStop(); collage.hide();
-  const activeStage = activeDisplayStage();
-  $('editor-stage').value = String(journey.stages.indexOf(activeStage));
-  selectedEditorStopId = activeStage?.stops[0]?.id || null;
+  closeDialogs();
+  $('editor-stage').value = String(journey.stages.indexOf(stage));
+  selectedEditorStopId = stopId || (stage.isPointStage ? pointStagePhotoPoint(stage)?.id || null : null);
+  currentEditorGalleryTarget = galleryTarget || (stage.isPointStage ? 'standpoint' : ((stopId || stage.isFullRoute) ? 'day' : 'sleep'));
   renderEditor(); openDialog('editor-dialog');
 }
 function beginMapPlacement(mode) {
-  if (journey.stages[editorStageIndex()]?.isPointStage) { notify('Tag 00 ist ein fester Standpunkt. Du kannst dort Bilder zuordnen, aber den Fotopunkt nicht verschieben.'); return; }
   if (mode === 'move' && !editorStop()) return;
+  player.pause(); player.closeStop(); collage.hide();
   map.setEditPlacement(mode);
-  $('editor-dialog').close();
-  notify(mode === 'new' ? 'Klicke auf die gewünschte Stelle an der Route, um einen Fotopunkt anzulegen.' : 'Klicke auf die gewünschte Stelle an der Route, um den ausgewählten Fotopunkt zu verschieben.');
+  if ($('editor-dialog').open) $('editor-dialog').close();
+  notify(mode === 'new' ? 'Klicke auf der Karte auf die gewünschte Fotopunkt-Position.' : 'Klicke auf der Karte auf die neue Position des Fotopunkts.');
 }
 function finishMapPlacement(coordinates) {
   const mode = map?.editPlacement;
   if (!mode || !Array.isArray(coordinates)) return;
-  const stageIndex = editorStageIndex(), stage = journey.stages[stageIndex];
-  if (!stage) { map.setEditPlacement(null); return; }
-  if (stage.isPointStage) { map.setEditPlacement(null); notify('Tag 00 ist ein fester Standpunkt.'); return; }
-  const globalProgress = nearestProgress(routes[0], coordinates);
-  const segment = stage.isFullRoute ? null : journeyTimeline.segments.find(item => item.id === stage.id);
-  const { startPointIndex, endPointIndex } = stage.routeProvenance || {};
-  const stageRoute = segment && Number.isInteger(startPointIndex) && Number.isInteger(endPointIndex)
-    ? prepareRoute(routes[0].points.slice(startPointIndex, endPointIndex + 1))
-    : null;
-  const progress = stageRoute ? nearestProgress(stageRoute, coordinates) : globalProgress;
-  if (mode === 'new') {
-    const stop = { id: `stopp-${crypto.randomUUID()}`, progress, title: 'Neuer Fotopunkt', approximate: true, caption: '', photoIds: [] };
-    stage.stops.push(stop); selectedEditorStopId = stop.id;
-  } else {
-    const stop = stage.stops.find(item => item.id === selectedEditorStopId);
-    if (!stop) { map.setEditPlacement(null); return; }
-    stop.progress = progress;
+  if (!coordinates.slice(0, 2).every(Number.isFinite) || Math.abs(coordinates[0]) > 180 || Math.abs(coordinates[1]) > 90) { map.setEditPlacement(null); notify('Diese Kartenposition ist ungültig.'); return; }
+  const point = coordinates.slice(0, 2);
+  if (mode === 'move') {
+    const oldStage = journey.stages.find(item => item.stops?.some(stop => stop.id === selectedEditorStopId));
+    const selectedStop = oldStage?.stops.find(item => item.id === selectedEditorStopId);
+    if (oldStage?.isPointStage && selectedStop) {
+      selectedStop.coordinates = point;
+      map.setEditPlacement(null);
+      map.refreshPointStages();
+      openEditor(oldStage, selectedStop.id);
+      text('editor-message', 'Fotopunkt verschoben. Er bleibt unabhängig von der Route. Änderungen noch speichern.');
+      return;
+    }
   }
-  syncPlaybackStops();
-  map.setEditPlacement(null); player.pause(); player.closeStop(); map.refreshStops(); renderEditor();
-  text('editor-message', `Position auf etwa ${Math.round(progress * 100)} % von ${formatDay(stage)} gesetzt. Speichere deine Änderungen.`);
-  openDialog('editor-dialog');
+  const globalProgress = nearestProgress(routes[0], point);
+  const segment = timelineSegmentAt(journeyTimeline.segments, globalProgress)
+    || journeyTimeline.segments.find(item => item.start >= globalProgress)
+    || journeyTimeline.segments.at(-1);
+  const stage = segment?.stage || journey.stages.find(item => item.isFullRoute);
+  if (!stage) { map.setEditPlacement(null); return; }
+  const progress = segment ? clamp((globalProgress - segment.start) / (segment.end - segment.start)) : globalProgress;
+  let selectedStop;
+  if (mode === 'new') {
+    selectedStop = { id: `stopp-${crypto.randomUUID()}`, progress, coordinates: point, title: 'Neuer Fotopunkt', caption: '', photoIds: [] };
+    stage.stops.push(selectedStop);
+  } else {
+    const oldStage = journey.stages.find(item => item.stops?.some(stop => stop.id === selectedEditorStopId));
+    selectedStop = oldStage?.stops.find(item => item.id === selectedEditorStopId);
+    if (!selectedStop) { map.setEditPlacement(null); return; }
+    oldStage.stops = oldStage.stops.filter(item => item.id !== selectedStop.id);
+    selectedStop.coordinates = point; selectedStop.progress = progress; stage.stops.push(selectedStop);
+    for (const id of selectedStop.photoIds || []) { const photo = journey.photos.find(item => item.id === id); if (photo) { photo.stageId = stage.id; delete photo.galleryTarget; } }
+  }
+  selectedEditorStopId = selectedStop.id;
+  refreshJourneyTimeline();
+  map.setEditPlacement(null); player.pause(); player.closeStop(); map.refreshStops();
+  openEditor(stage, selectedStop.id);
+  text('editor-message', `Fotopunkt auf der Karte gesetzt. Die Route pausiert am nächsten Routenpunkt · ${formatDay(stage)}. Änderungen noch speichern.`);
+}
+function deleteEditorStop() {
+  const stage = journey.stages[editorStageIndex()], stop = editorStop();
+  if (!stage || !stop || stage.isPointStage) return;
+  const galleryStage = stageForPhotoStop(stop, stage) || stage;
+  stage.stops = stage.stops.filter(item => item.id !== stop.id);
+  for (const id of stop.photoIds || []) {
+    const photo = journey.photos.find(item => item.id === id);
+    const referenced = journey.stages.some(candidate => candidate.stops?.some(other => other.photoIds?.includes(id)));
+    if (photo && !referenced) { photo.stageId = galleryStage.id; photo.galleryTarget = 'day'; }
+  }
+  if (player.state.stopId === stop.id) player.closeStop();
+  selectedEditorStopId = null;
+  refreshJourneyTimeline(); map.refreshStops(); renderEditor();
+  text('editor-message', 'Fotopunkt entfernt. Seine Medien bleiben in der Tagesgalerie; Änderungen noch speichern.');
 }
 function mediaTypeFor(file) {
   const extension = file.name.split('.').at(-1).toLowerCase();
@@ -591,6 +922,7 @@ async function makeMediaThumbnail(file, videoFile) {
 }
 async function uploadFile(file, stage, stop) {
   const mime = mediaTypeFor(file), isVideo = mime.startsWith('video/');
+  const mediaStage = !stop && stage.isFullRoute && currentEditorGalleryTarget === 'day' ? stageAtRouteProgress(player.state.progress) || stage : stage;
   const assetId = crypto.randomUUID(), photoId = `upload-${assetId}`;
   const send = async (blob, variant, contentType) => {
     const response = await fetch('/api/media', { method: 'POST', headers: { 'Content-Type': contentType, 'X-Asset-Id': assetId, 'X-Asset-Variant': variant }, body: blob });
@@ -601,9 +933,9 @@ async function uploadFile(file, stage, stop) {
   const filePath = await send(file, 'original', mime);
   let thumbnail;
   try { const preview = await makeMediaThumbnail(file, isVideo); if (preview) thumbnail = await send(preview, 'thumbnail', 'image/jpeg'); } catch { /* The original remains usable when this browser cannot decode its preview. */ }
-  const fileTitle = file.name.replace(/\.[^.]+$/, '');
-  const title = generatedFilenameTitle.test(fileTitle) ? stop?.title || 'Erinnerung unterwegs' : fileTitle;
-  journey.photos.push({ id: photoId, mediaType: isVideo ? 'video' : 'image', originalName: file.name, file: filePath, ...(thumbnail ? { thumbnail } : {}), stageId: stage.id, assignment: 'manual', title, caption: '', placeholder: false });
+  const existingGalleryMedia = stop ? [] : editorGalleryMedia(mediaStage, currentEditorGalleryTarget);
+  const galleryOrder = stop ? undefined : existingGalleryMedia.reduce((max, photo, index) => Math.max(max, Number.isFinite(photo.galleryOrder) ? photo.galleryOrder : index), -1) + 1;
+  journey.photos.push({ id: photoId, mediaType: isVideo ? 'video' : 'image', originalName: file.name, file: filePath, ...(thumbnail ? { thumbnail } : {}), stageId: mediaStage.id, ...(stop ? {} : { galleryTarget: currentEditorGalleryTarget, galleryOrder }), assignment: 'manual', caption: '', placeholder: false });
   if (stop) {
     stop.photoIds = (stop.photoIds || []).filter(id => !journey.photos.find(photo => photo.id === id)?.placeholder);
     stop.photoIds.push(photoId);
@@ -625,26 +957,28 @@ async function saveEditorChanges() {
   try {
     const response = await fetch('/api/journey', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(journey) });
     const data = await readApiResponse(response); if (!response.ok || !data.saved) throw new Error(data.error || `Speichern fehlgeschlagen (HTTP ${response.status}).`);
-    syncPlaybackStops(); $('editor-message').dataset.error = 'false'; text('editor-message', 'Gespeichert. Bilder, Videos und Fotopunkte bleiben lokal auf diesem Mac.');
-    $('demo-label').hidden = !journey.demo; map.refreshStops(); renderEditor();
+    refreshJourneyTimeline(); $('editor-message').dataset.error = 'false';
+    $('demo-label').hidden = !journey.demo; map.refreshStops(); $('editor-dialog').close(); notify('Änderungen gespeichert.');
   } catch (error) { $('editor-message').dataset.error = 'true'; text('editor-message', error.message); }
   finally { editorBusy = false; $('editor-save').disabled = false; }
 }
 function initEditor() {
   journey.stages.forEach((stage, index) => { const option = element('option', '', `${formatDay(stage)} · ${stage.title}`); option.value = String(index); $('editor-stage').append(option); });
   $('editor-stage').addEventListener('change', () => {
-    const index = editorStageIndex(); selectedEditorStopId = journey.stages[index].stops[0]?.id || null; renderEditor();
+    selectedEditorStopId = null; renderEditor();
   });
   $('editor-stop').addEventListener('change', () => { selectedEditorStopId = $('editor-stop').value || null; renderEditor(); });
   $('editor-stop-title').addEventListener('input', () => {
     const stop = editorStop(); if (!stop) return;
     stop.title = $('editor-stop-title').value.trim() || 'Fotopunkt';
+    text('editor-title', stop.title);
     const option = [...$('editor-stop').options].find(item => item.value === stop.id);
     if (option) option.textContent = `${stop.title} · ${stop.photoIds?.length || 0} Medien`;
   });
   $('editor-stop-caption').addEventListener('input', () => { const stop = editorStop(); if (stop) stop.caption = $('editor-stop-caption').value; });
   $('editor-add-stop').addEventListener('click', () => beginMapPlacement('new'));
   $('editor-move-stop').addEventListener('click', () => beginMapPlacement('move'));
+  $('editor-delete-stop').addEventListener('click', deleteEditorStop);
   async function uploadEditorFiles(files) {
     const stage = journey.stages[editorStageIndex()], stop = editorStop();
     if (!files.length || editorBusy) return;
@@ -706,7 +1040,7 @@ async function init() {
   layoutObserver.observe($('main')); layoutObserver.observe($('route-timeline'));
   player = new TourPlayer([playbackStage], render);
   initEditor();
-  map = new JourneyMap({ stages: [playbackStage], routes, bookmarks: journey.stages.filter(stage => !stage.isFullRoute), pointStages: journey.stages.filter(stage => stage.isPointStage), onPointSelect: selectPointStage, onStop: stop => player.openStop(stop, { manual: true }), onRouteSeek: (_stageIndex, progress) => player.seek(progress), onMapPoint: finishMapPlacement, onStatus: mapStatus, createStopPreview: stopPreview, onHeading: bearing => {
+  map = new JourneyMap({ stages: [playbackStage], routes, bookmarks: journey.stages.filter(stage => !stage.isFullRoute), pointStages: journey.stages.filter(stage => stage.isPointStage), onPointSelect: selectPointStage, onSleepPlaceSelect: selectSleepPlace, onStop: activateStop, onRouteSeek: (_stageIndex, progress) => player.seek(progress), onMapPoint: finishMapPlacement, onStatus: mapStatus, createStopPreview: stopPreview, onHeading: bearing => {
     if (!Number.isFinite(bearing)) return;
     const degrees = ((bearing % 360) + 360) % 360;
     const direction = ['N', 'NO', 'O', 'SO', 'S', 'SW', 'W', 'NW'][Math.round(degrees / 45) % 8];
@@ -720,7 +1054,7 @@ async function init() {
   setupTimeline(journeyTimeline);
   buildNavigation();
   $('demo-label').hidden = !journey.demo;
-  $('cover-note').textContent = journey.routeDownload ? 'Eine Route München–Venedig · 27 Tages-Lesezeichen · Fotobeispiele.' : journey.demo ? 'Beispiele für Etappen und Bilder · deine Erinnerungen folgen.' : 'Deine Etappen. Deine Bilder. Dein Tempo.';
+  $('cover-note').textContent = journey.routeDownload ? 'Eine Route München–Venedig · 27 Tages-Lesezeichen · deine Fotos.' : journey.demo ? 'Beispiele für Etappen und Bilder · deine Erinnerungen folgen.' : 'Deine Etappen. Deine Bilder. Dein Tempo.';
   text('cover-title', journey.title); $('cover-title').style.whiteSpace = 'pre-line'; $('cover-title').textContent = journey.title.replace(' Ein ', '\nEin ');
   const total = document.querySelector('.trip-total-number'); total.textContent = journey.totalDays;
   const config = configResponse.ok ? await configResponse.json() : {};
@@ -748,19 +1082,38 @@ async function init() {
   $('route-progress').addEventListener('blur', event => maybeHideTimelineTooltip(event));
   $('route-timeline').addEventListener('keydown', event => { if (event.key === 'Escape') hideTimelineTooltip(); });
   $('timeline-tooltip').addEventListener('pointerleave', event => maybeHideTimelineTooltip(event));
-  $('speed-range').addEventListener('input', e => {
-    player.state.speed = playbackSpeeds[Number(e.target.value)];
-    const label = speedLabel(player.state.speed);
-    e.target.setAttribute('aria-valuetext', label); $('speed-value').value = label;
-  });
+  $('speed-range').addEventListener('input', e => setPlaybackSpeed(Number(e.target.value)));
+  $('speed-up').addEventListener('click', () => stepPlaybackSpeed(1));
+  $('speed-down').addEventListener('click', () => stepPlaybackSpeed(-1));
+  const jumpToStop = direction => {
+    closeDialogs();
+    if (collage.active) collage.hide();
+    if (direction < 0) player.previous(); else player.next();
+  };
+  $('previous-stop-button').addEventListener('click', () => jumpToStop(-1));
+  $('next-stop-button').addEventListener('click', () => jumpToStop(1));
   $('recenter-button').addEventListener('click', () => {
     closeDialogs();
     if (player.state.mode === 'explore') player.setMode('presentation');
     map.recenter(player.state.progress);
     announce('Kamera kehrt zur aktuellen Routenposition zurück.');
   });
-  $('gallery-button').addEventListener('click', openGallery);
-  $('editor-button').addEventListener('click', openEditor);
+  $('gallery-button').addEventListener('click', () => openGallery());
+  $('gallery-add-media').addEventListener('click', () => {
+    const stage = journey.stages.find(item => item.id === currentGalleryStageId);
+    if (stage) openEditor(stage, null, stage.isPointStage ? 'standpoint' : currentGallerySleepPlaceOnly ? 'sleep' : 'day');
+  });
+  $('editor-button').addEventListener('click', () => beginMapPlacement('new'));
+  $('collage-edit-stop').addEventListener('click', () => {
+    if (collage?.stop?.sleepPlaceGallery) {
+      const stage = journey.stages.find(item => item.id === collage.stop.galleryStageId);
+      if (stage) openEditor(stage, null, 'sleep');
+      return;
+    }
+    const stopId = collage?.stop?.id;
+    const stage = journey.stages.find(item => item.stops?.some(stop => stop.id === stopId));
+    if (stage && stopId) openEditor(stage, stopId);
+  });
   $('settings-button').addEventListener('click', () => { player.pause(); openDialog('settings-dialog'); refreshBrowserCache(); });
   $('connect-button').addEventListener('click', () => { player.pause(); openDialog('settings-dialog'); refreshBrowserCache(); });
   $('check-cache').addEventListener('click', refreshBrowserCache);
@@ -771,8 +1124,6 @@ async function init() {
   $('continue-button').addEventListener('click', () => $('photo-dialog').close());
   $('collage-continue').addEventListener('click', () => finishPhoto());
   $('collage-hide').addEventListener('click', () => finishPhoto(false));
-  $('collage-previous').addEventListener('click', () => collage.move(-1));
-  $('collage-next').addEventListener('click', () => collage.move(1));
   $('photo-collage').addEventListener('click', event => {
     if (!collage.active || event.target.closest('.collage-card, button')) return;
     finishPhoto();
@@ -804,7 +1155,11 @@ async function init() {
     if (collage.active) {
       if (event.key === 'Escape') { event.preventDefault(); finishPhoto(false); return; }
       if (event.code === 'Space') { event.preventDefault(); event.stopPropagation(); finishPhoto(); return; }
-      if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') { event.preventDefault(); event.stopPropagation(); collage.move(event.key === 'ArrowRight' ? 1 : -1); return; }
+      if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+        event.preventDefault(); event.stopPropagation();
+        if (event.key === 'ArrowRight') advanceCollage(); else collage.move(-1);
+        return;
+      }
     }
     if (player.state.mode === 'explore' && event.target.closest('#map') && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', '+', '=', '-'].includes(event.key)) return;
     if (['BUTTON', 'A'].includes(event.target.tagName) && event.code === 'Space') return;

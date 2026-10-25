@@ -28,6 +28,16 @@ test('photos wait for camera arrival and paginate by three without advancing a p
   await collage.move(-1); assert.deepEqual(last().entries.map(entry => entry.node), ['5']);
   assert.equal(player.state.progress, .4);
 });
+
+test('single-media pages expose a final next action that can continue the route', async () => {
+  const { collage, last } = fixture(async photo => photo.id);
+  collage.pageSize = 1;
+  collage.queue(stop, [{ id: 'only' }]);
+  await collage.arrive();
+  assert.equal(last().hasNext, false);
+  assert.equal(collage.hasNext, false);
+  assert.equal(collage.offset, 0);
+});
 test('a replaced stop aborts old loads and cannot display stale pictures', async () => {
   const old = deferred(); let oldSignal;
   const { collage, changes, last } = fixture((photo, { signal }) => {

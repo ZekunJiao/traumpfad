@@ -8,7 +8,7 @@ export class TourPlayer {
     this.savedPresentation = null;
   }
   get stage() { return this.stages[this.state.stageIndex]; }
-  get stops() { return [...(this.stage.stops || [])].sort((a, b) => a.progress - b.progress); }
+  get stops() { return [...(this.stage.stops || [])].filter(stop => !Array.isArray(stop.photoIds) || stop.photoIds.length > 0).sort((a, b) => a.progress - b.progress); }
   emit(reason) { this.onChange({ ...this.state }, reason); }
   selectStage(index, { play = false } = {}) {
     this.state.stageIndex = clamp(index, 0, this.stages.length - 1);
@@ -67,13 +67,21 @@ export class TourPlayer {
   }
   closeStop() { if (this.state.status === 'stop') { Object.assign(this.state, { status: 'paused', stopId: null }); this.emit('pause'); } }
   next() {
-    const stop = this.stops.find(s => s.progress > this.state.progress + 1e-7);
+    const stops = this.stops;
+    const currentIndex = this.state.stopId ? stops.findIndex(stop => stop.id === this.state.stopId) : -1;
+    const stop = currentIndex >= 0
+      ? stops[currentIndex + 1]
+      : stops.find(item => item.progress > this.state.progress + 1e-7);
     if (stop) return this.openStop(stop, { manual: true });
     if (this.state.stageIndex < this.stages.length - 1) return this.selectStage(this.state.stageIndex + 1);
     Object.assign(this.state, { progress: 1, status: 'stage-end', stopId: null }); this.emit('end');
   }
   previous() {
-    const stop = this.stops.filter(s => s.progress < this.state.progress - 1e-7).at(-1);
+    const stops = this.stops;
+    const currentIndex = this.state.stopId ? stops.findIndex(stop => stop.id === this.state.stopId) : -1;
+    const stop = currentIndex >= 0
+      ? stops[currentIndex - 1]
+      : stops.filter(item => item.progress < this.state.progress - 1e-7).at(-1);
     if (stop) return this.openStop(stop, { manual: true });
     if (this.state.stageIndex > 0) {
       this.selectStage(this.state.stageIndex - 1);

@@ -1,4 +1,4 @@
-import { bearing, clamp, destination, distance, feature, nearestProgress, pointAt, sliceRoute } from './route.js';
+import { bearing, clamp, destination, distance, feature, pointAt, pointStageCoordinates, sliceRoute } from './route.js';
 import { describeMapError } from './map-error.js';
 import { createMapRequestGate } from './tile-request-gate.js';
 import { interpolateCamera } from './camera-transition.js';
@@ -30,10 +30,10 @@ function svgNode(tag, attributes, text) {
 }
 
 export class JourneyMap {
-  constructor({ stages, routes, bookmarks = [], pointStages = [], onPointSelect = () => {}, onStop, onRouteSeek = () => {}, onMapPoint = () => {}, onStatus, createStopPreview, onExplore = () => {}, onPitch = () => {}, onBearing = () => {}, onHeight = () => {}, onHeading = () => {} }) {
-    Object.assign(this, { stages, routes, bookmarks, pointStages, onPointSelect, onStop, onRouteSeek, onMapPoint, onStatus, createStopPreview, onExplore, onPitch, onBearing, onHeight, onHeading });
+  constructor({ stages, routes, bookmarks = [], pointStages = [], onPointSelect = () => {}, onSleepPlaceSelect = () => {}, onStop, onRouteSeek = () => {}, onMapPoint = () => {}, onStatus, createStopPreview, onExplore = () => {}, onPitch = () => {}, onBearing = () => {}, onHeight = () => {}, onHeading = () => {} }) {
+    Object.assign(this, { stages, routes, bookmarks, pointStages, onPointSelect, onSleepPlaceSelect, onStop, onRouteSeek, onMapPoint, onStatus, createStopPreview, onExplore, onPitch, onBearing, onHeight, onHeading });
     this.viewPitch = null; this.viewBearing = 0; this.viewDistance = 1; this.heightOffset = 0;
-    this.map = null; this.ready = false; this.stageIndex = 0; this.progress = 0; this.markers = []; this.landmarkMarkers = []; this.exploring = false; this.editPlacement = null;
+    this.map = null; this.ready = false; this.stageIndex = 0; this.progress = 0; this.markers = []; this.landmarkMarkers = []; this.exploring = false; this.editPlacement = null; this.overviewMode = true;
     this.container = document.getElementById('schematic');
     this.buildSchematic();
     this.container.addEventListener('click', event => this.handleSchematicRouteClick(event));
@@ -43,7 +43,7 @@ export class JourneyMap {
   buildSchematic() {
     this.container.replaceChildren(); this.schemaPreviewStage = null;
     const width = Math.max(320, this.container.clientWidth), height = Math.max(590, this.container.clientHeight);
-    const svg = svgNode('svg', { viewBox: `0 0 ${width} ${height}`, role: 'img', 'aria-label': 'Schematischer Verlauf der geladenen Etappen. Keine Geländekarte.' });
+    const svg = svgNode('svg', { viewBox: `0 0 ${width} ${height}`, role: 'group', 'aria-label': 'Schematischer Verlauf der geladenen Etappen. Schlafplatzmarken springen zum Etappenziel und öffnen die zugehörigen Bilder.' });
     svg.append(svgNode('rect', { x: 0, y: 0, width, height, fill: 'transparent', 'pointer-events': 'all' }));
     const relief = svgNode('g', { transform: `translate(${width * .78} ${height * .65}) rotate(-29)`, fill: 'none', stroke: '#b6c598', 'stroke-width': '.9', opacity: '.12' });
     for (let i = 0; i < 24; i++) relief.append(svgNode('ellipse', { cx: Math.sin(i * .4) * 20, cy: i * 1.8, rx: 45 + i * 19, ry: 30 + i * 10 }));
@@ -53,11 +53,14 @@ export class JourneyMap {
     svg.append(relief2);
     const points = [
       ...this.routes.flatMap(r => r.points),
-      ...this.pointStages.map(stage => stage.location.coordinates)
+      ...this.stages.flatMap(stage => (stage.stops || []).map(stop => stop.coordinates).filter(Boolean)),
+      ...this.pointStages.map(pointStageCoordinates)
     ];
     const minLon = Math.min(...points.map(p => p[0])), maxLon = Math.max(...points.map(p => p[0]));
     const minLat = Math.min(...points.map(p => p[1])), maxLat = Math.max(...points.map(p => p[1]));
-    this.project = p => [width * .54 + (p[0] - minLon) / Math.max(.01, maxLon - minLon) * width * .22, height * .15 + (maxLat - p[1]) / Math.max(.01, maxLat - minLat) * (height * .61 - 25)];
+    const lonSpan = Math.max(.01, maxLon - minLon), latSpan = Math.max(.01, maxLat - minLat);
+    this.project = p => [width * .54 + (p[0] - minLon) / lonSpan * width * .22, height * .15 + (maxLat - p[1]) / latSpan * (height * .61 - 25)];
+    this.unproject = p => [minLon + (p[0] - width * .54) / (width * .22) * lonSpan, maxLat - (p[1] - height * .15) / (height * .61 - 25) * latSpan];
     this.schemaPaths = [];
     const line = points => points.map((p, i) => `${i ? 'L' : 'M'}${this.project(p).join(',')}`).join(' ');
     this.schemaLine = line;
@@ -77,22 +80,32 @@ export class JourneyMap {
     svg.append(svgNode('text', { x: end[0] + 12, y: end[1] + 4, class: 'schema-label' }, this.stages[routeIndex].end));
     for (const place of overnightPlaces(this.bookmarks, this.routes[routeIndex])) {
       const position = this.project(pointAt(this.routes[routeIndex], place.progress));
-      const marker = svgNode('g', { class: 'schema-overnight', 'aria-label': `Tag ${place.day}: ${place.name}` });
+      const marker = svgNode('g', {
+        class: 'schema-overnight',
+        'data-sleep-stage-id': place.stageId,
+        role: 'button', tabindex: '0',
+        'aria-label': `Tag ${place.day}: zu ${place.name} springen und Schlafplatzbilder öffnen`
+      });
       marker.append(svgNode('circle', { cx: position[0], cy: position[1], r: 2.5, fill: '#e8c183', stroke: '#183d35', 'stroke-width': 1 }));
       marker.append(svgNode('text', { x: position[0] + 7, y: position[1] - 5, class: 'schema-label' }, `${String(place.day).padStart(2, '0')} · ${place.name}`));
+      marker.addEventListener('click', event => { event.stopPropagation(); this.onSleepPlaceSelect(place.stageId); });
+      marker.addEventListener('keydown', event => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault(); event.stopPropagation(); this.onSleepPlaceSelect(place.stageId);
+      });
       svg.append(marker);
     }
     for (const stage of this.pointStages) {
-      const position = this.project(stage.location.coordinates);
+      const position = this.project(pointStageCoordinates(stage));
       const marker = svgNode('g', {
         class: 'schema-point-stage',
         'data-point-stage-id': stage.id,
         role: 'button',
         tabindex: '0',
-        'aria-label': `${stage.title} · Standpunkt öffnen`
+        'aria-label': `${stage.title} · Fotopunkt öffnen`
       });
       marker.append(svgNode('circle', { cx: position[0], cy: position[1], r: 10, fill: '#183d35', stroke: '#f0cf91', 'stroke-width': 2 }));
-      marker.append(svgNode('text', { x: position[0], y: position[1] + 4, 'text-anchor': 'middle', class: 'schema-point-symbol' }, '⌖'));
+      marker.append(svgNode('text', { x: position[0], y: position[1] + 4, 'text-anchor': 'middle', class: 'schema-point-symbol' }, '◆'));
       marker.append(svgNode('text', { x: position[0] + 15, y: position[1] + 4, class: 'schema-point-label' }, stage.title));
       marker.addEventListener('click', event => { event.stopPropagation(); this.onPointSelect(stage); });
       marker.addEventListener('keydown', event => {
@@ -104,7 +117,7 @@ export class JourneyMap {
     this.schemaTravelled = svgNode('path', { fill: 'none', stroke: '#e8c183', 'stroke-width': '3.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
     this.schemaDot = svgNode('circle', { r: 6, fill: '#ffffff', stroke: '#314b3a', 'stroke-width': 2 });
     svg.append(this.schemaTravelled, this.schemaDot);
-    this.container.append(svg); this.updateSchema(); this.updatePointStageSelection();
+    this.container.append(svg); this.updateSchema(); this.updatePointStageSelection(); this.updateOverviewMarkerVisibility();
   }
   handleSchematicRouteClick(event) {
     const pointStageMarker = event.target?.closest?.('[data-point-stage-id]');
@@ -113,18 +126,18 @@ export class JourneyMap {
       if (stage) this.onPointSelect(stage);
       return;
     }
-    if (event.target?.closest?.('.map-photo-preview,[data-stop-id]')) return;
     const svg = this.container.querySelector('svg'), matrix = svg?.getScreenCTM?.();
     if (!svg || !matrix) return;
+    if (this.editPlacement) {
+      const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse());
+      event.preventDefault(); this.onMapPoint(this.unproject([point.x, point.y])); return;
+    }
+    if (event.target?.closest?.('.map-photo-preview,[data-stop-id]')) return;
     const project = point => {
       const [x, y] = this.project(point);
       return [matrix.a * x + matrix.c * y + matrix.e, matrix.b * x + matrix.d * y + matrix.f];
     };
     const hit = findRouteHit({ routes: this.routes, stages: this.stages, currentStageIndex: this.stageIndex, point: [event.clientX, event.clientY], project });
-    if (hit && this.editPlacement) {
-      if (hit.stageIndex === this.stageIndex) { event.preventDefault(); this.onMapPoint(pointAt(this.routes[this.stageIndex], hit.progress)); }
-      return;
-    }
     if (hit) { event.preventDefault(); this.onRouteSeek(hit.stageIndex, hit.progress); }
   }
   setEditPlacement(mode = null) {
@@ -132,6 +145,15 @@ export class JourneyMap {
     this.container.classList.toggle('is-editing', Boolean(mode));
     const canvas = this.map?.getCanvas();
     if (canvas) canvas.style.cursor = mode ? 'crosshair' : '';
+  }
+  refreshPointStages() {
+    this.pointStageMarkers?.forEach(marker => marker.remove());
+    this.pointStageMarkers = this.ready && this.map
+      ? this.pointStages.map(stage => this.createPointStageMarker(stage, this.map))
+      : [];
+    this.buildSchematic();
+    this.updatePointStageSelection();
+    this.updateOverviewMarkerVisibility();
   }
   updateSchema() {
     this.schemaPaths.forEach((path, i) => { path.setAttribute('opacity', i === this.stageIndex ? '1' : '.2'); path.setAttribute('stroke', '#ef5350'); });
@@ -141,16 +163,17 @@ export class JourneyMap {
     if (this.createStopPreview && this.schemaPreviewStage !== this.stageIndex) {
       this.container.querySelectorAll('.map-photo-preview').forEach(node => node.remove());
       this.schemaPreviewStage = this.stageIndex;
-      for (const stop of this.stages[this.stageIndex].stops || []) {
+      for (const stop of (this.stages[this.stageIndex].stops || []).filter(item => !item.sleepPlaceGallery)) {
         const button = this.createStopPreview(stop);
-        const position = this.project(pointAt(route, stop.progress));
+        const position = this.project(stop.coordinates || pointAt(route, stop.progress));
         button.style.left = `${position[0]}px`; button.style.top = `${position[1]}px`;
         button.addEventListener('click', event => {
-          if (this.editPlacement) { event.preventDefault(); event.stopPropagation(); this.onMapPoint(pointAt(route, stop.progress)); }
+          if (this.editPlacement) { event.preventDefault(); event.stopPropagation(); this.onMapPoint(stop.coordinates || pointAt(route, stop.progress)); }
           else this.onStop(stop);
         }); this.container.append(button);
       }
     }
+    this.updateOverviewMarkerVisibility();
   }
   setToken(token) {
     this.photoCamera = null;
@@ -159,7 +182,7 @@ export class JourneyMap {
     this.markers.forEach(m => m.remove()); this.markers = [];
     this.overnightMarkers?.forEach(m => m.remove()); this.overnightMarkers = [];
     this.landmarkMarkers.forEach(({ marker }) => marker.remove()); this.landmarkMarkers = [];
-    this.map?.remove(); this.map = null; this.ready = false; this.lastLoadError = null; this.waitingForTerrain = false; this.appliedExplore = null; this.container.hidden = false;
+    this.map?.remove(); this.map = null; this.ready = false; this.lastLoadError = null; this.waitingForTerrain = false; this.appliedExplore = null; this.pendingFocusOptions = null; this.container.hidden = false;
     if (!token) { this.onStatus('schematic'); return; }
     if (!window.mapboxgl?.supported()) { this.onStatus('error', '3D-Karten werden von diesem Browser nicht unterstützt. Die Vorschau und Galerien bleiben verfügbar.'); return; }
     this.onStatus('loading');
@@ -207,11 +230,14 @@ export class JourneyMap {
           map.addLayer({ id: 'journey-position', type: 'circle', slot: 'middle', source: 'journey-position', paint: { 'circle-radius': 6, 'circle-color': '#ffffff', 'circle-stroke-color': '#183d35', 'circle-stroke-width': 2 } });
           this.bindRouteInteractions(map);
           this.overnightMarkers = overnightPlaces(this.bookmarks, this.routes[0]).map(place => {
-            const label = document.createElement('div'); label.className = 'overnight-place';
+            const label = document.createElement('button'); label.type = 'button'; label.className = 'overnight-place';
             const dot = document.createElement('span'); dot.className = 'overnight-dot'; dot.textContent = String(place.day);
             const name = document.createElement('span'); name.className = 'overnight-name'; name.textContent = place.name;
-            const description = `${place.confirmed ? 'Übernachtung' : 'Etappenziel'} ${place.day}: ${place.name}${place.confirmed ? '' : ' · Übernachtung noch abzugleichen'}`;
+            const description = `Tag ${place.day}: zu ${place.name} springen und Schlafplatzbilder öffnen${place.confirmed ? '' : ' · Schlafplatz noch abzugleichen'}`;
             label.title = description; label.setAttribute('aria-label', description); label.append(dot, name);
+            label.addEventListener('click', event => {
+              event.preventDefault(); event.stopPropagation(); this.onSleepPlaceSelect(place.stageId);
+            });
             return new window.mapboxgl.Marker({ element: label, anchor: 'left' }).setLngLat(place.coordinates).addTo(map);
           });
           this.landmarkMarkers = [
@@ -222,15 +248,17 @@ export class JourneyMap {
           this.updatePointStageSelection();
           this.updateLandmarkAltitudes();
           this.updateLandmarkOpacities();
+          this.updateOverviewMarkerVisibility();
           const pendingStop = this.pendingStopProgress;
           const pendingFocus = this.pendingFocusProgress;
+          const pendingFocusOptions = this.pendingFocusOptions;
           const pendingPoint = this.pendingPointCoordinates;
           const pendingProgress = this.progress;
           const pendingOverview = this.pendingOverview;
           this.pendingOverview = false;
           this.ready = true; this.container.hidden = true; this.onStatus('ready'); this.setStage(this.stageIndex, { fitOverview: pendingOverview }); this.setExplore(this.exploring);
           if (Array.isArray(pendingPoint)) this.focusPoint(pendingPoint);
-          else if (Number.isFinite(pendingFocus)) this.focusBookmark(pendingFocus);
+          else if (Number.isFinite(pendingFocus)) this.focusBookmark(pendingFocus, pendingFocusOptions || {});
           else if (Number.isFinite(pendingStop)) this.focusStop(pendingStop);
           else this.setProgress(pendingProgress, false);
         } catch (error) { this.fail('Die 3D-Karte konnte nicht aufgebaut werden. ' + error.message); }
@@ -301,12 +329,12 @@ export class JourneyMap {
     const button = document.createElement('button');
     button.type = 'button'; button.className = 'map-point-stage-marker';
     button.dataset.pointStageId = stage.id;
-    button.textContent = `⌖ ${stage.title}`;
-    button.setAttribute('aria-label', `${stage.title} · Standpunkt auf der Karte öffnen`);
+    button.textContent = `◆ ${stage.title}`;
+    button.setAttribute('aria-label', `${stage.title} · Fotopunkt auf der Karte öffnen`);
     button.addEventListener('click', event => {
       event.preventDefault(); event.stopPropagation(); this.onPointSelect(stage);
     });
-    return new window.mapboxgl.Marker({ element: button, anchor: 'bottom' }).setLngLat(stage.location.coordinates).addTo(map);
+    return new window.mapboxgl.Marker({ element: button, anchor: 'bottom' }).setLngLat(pointStageCoordinates(stage)).addTo(map);
   }
   bindRouteInteractions(map) {
     const layers = ['journey-active', 'journey-all'];
@@ -323,8 +351,7 @@ export class JourneyMap {
       if (map !== this.map || !this.ready || event.originalEvent?.target?.closest?.('.map-photo-preview,[data-stop-id],.map-landmark,.overnight-place,.map-point-stage-marker')) return;
       if (this.editPlacement) {
         event.preventDefault();
-        const route = this.routes[this.stageIndex], progress = nearestProgress(route, [event.lngLat.lng, event.lngLat.lat]);
-        this.onMapPoint(pointAt(route, progress));
+        this.onMapPoint([event.lngLat.lng, event.lngLat.lat]);
         return;
       }
       const { x, y } = event.point;
@@ -349,7 +376,7 @@ export class JourneyMap {
   }
   updateLandmarkOpacities() {
     if (!this.map || !this.landmarkMarkers.length) return;
-    const overview = this.map.getZoom() < LANDMARK_LABELS_MIN_ZOOM;
+    const overview = this.overviewMode || this.map.getZoom() < LANDMARK_LABELS_MIN_ZOOM;
     const center = this.map.getCenter(), viewPoint = [center.lng, center.lat];
     for (const { marker, place, kind } of this.landmarkMarkers) {
       const element = marker.getElement();
@@ -366,6 +393,22 @@ export class JourneyMap {
       element.style.opacity = String(1 - eased * (1 - LANDMARK_MIN_OPACITY));
     }
   }
+  updateOverviewMarkerVisibility() {
+    const hide = this.overviewMode;
+    for (const marker of [...this.markers, ...(this.pointStageMarkers || [])]) {
+      marker.getElement().style.visibility = hide ? 'hidden' : '';
+    }
+    this.container.querySelectorAll('.map-photo-preview,[data-point-stage-id]').forEach(marker => {
+      marker.style.visibility = hide ? 'hidden' : '';
+    });
+  }
+  setOverviewMode(overview) {
+    const next = Boolean(overview);
+    if (this.overviewMode === next) return;
+    this.overviewMode = next;
+    this.updateOverviewMarkerVisibility();
+    this.updateLandmarkOpacities();
+  }
   setStage(index, { fitOverview = false } = {}) {
     this.photoCamera = null;
     this.pendingStopProgress = null;
@@ -380,19 +423,20 @@ export class JourneyMap {
   }
   renderStopMarkers(index) {
     this.markers.forEach(m => m.remove());
-    this.markers = (this.stages[index].stops || []).map((stop, i) => {
+    this.markers = (this.stages[index].stops || []).filter(stop => !stop.sleepPlaceGallery).map((stop, i) => {
       const button = this.createStopPreview ? this.createStopPreview(stop) : document.createElement('button');
       if (!this.createStopPreview) { button.className = 'route-marker'; button.textContent = String(i + 1); }
-      button.dataset.stopId = stop.id; button.setAttribute('aria-label', `${stop.title}${stop.approximate ? ', ungefährer Ort' : ''}`);
+      button.dataset.stopId = stop.id; button.setAttribute('aria-label', stop.title);
       button.addEventListener('click', event => {
-        if (this.editPlacement) { event.preventDefault(); event.stopPropagation(); this.onMapPoint(pointAt(this.routes[index], stop.progress)); }
+        if (this.editPlacement) { event.preventDefault(); event.stopPropagation(); this.onMapPoint(stop.coordinates || pointAt(this.routes[index], stop.progress)); }
         else this.onStop(stop);
       });
-      return new window.mapboxgl.Marker({ element: button }).setLngLat(pointAt(this.routes[index], stop.progress)).addTo(this.map);
+      return new window.mapboxgl.Marker({ element: button }).setLngLat(stop.coordinates || pointAt(this.routes[index], stop.progress)).addTo(this.map);
     });
+    this.updateOverviewMarkerVisibility();
   }
   refreshStops() {
-    this.schemaPreviewStage = null; this.updateSchema();
+    this.buildSchematic();
     if (this.ready) this.renderStopMarkers(this.stageIndex);
   }
   focusStop(progress) {
@@ -403,18 +447,20 @@ export class JourneyMap {
     if (this.exploring) { this.setProgress(progress, false); this.flyToRoutePoint(progress); }
     else this.setProgress(progress);
   }
-  focusBookmark(progress) {
+  focusBookmark(progress, { zoom = 12.4, pitch = 50 } = {}) {
     this.pendingStopProgress = null;
     this.pendingFocusProgress = progress;
+    this.pendingFocusOptions = { zoom, pitch };
     if (!this.ready) { this.setProgress(progress, false); return; }
     this.pendingFocusProgress = null;
+    this.pendingFocusOptions = null;
     this.cancelCameraMotion(); this.cameraPosition = null; this.cameraAltitude = null; this.cameraTarget = null; this.pathHeading = null;
     this.setProgress(progress, false);
-    this.flyToRoutePoint(progress);
+    this.flyToRoutePoint(progress, { zoom, pitch });
   }
   focusPoint(coordinates) {
     this.pendingPointCoordinates = coordinates;
-    const pointStage = this.pointStages.find(stage => stage.location.coordinates === coordinates);
+    const pointStage = this.pointStages.find(stage => pointStageCoordinates(stage) === coordinates);
     this.selectedPointStageId = pointStage?.id || null;
     this.updatePointStageSelection();
     if (!this.ready || !this.map) return;
@@ -446,7 +492,7 @@ export class JourneyMap {
     if (!this.ready || this.photoCamera?.id === stop.id) return;
     const pose = this.map.getFreeCameraOptions();
     this.photoCamera = { id: stop.id, stageIndex: this.stageIndex, pose };
-    const center = pointAt(this.routes[this.stageIndex], stop.progress);
+    const center = stop.coordinates || pointAt(this.routes[this.stageIndex], stop.progress);
     const saved = this.photoCamera, heading = this.map.getBearing();
     // Load detailed terrain first, then descend using absolute terrain elevation.
     this.animateNavigation(() => this.map.flyTo({ center, zoom: Math.min(19, this.map.getMaxZoom?.() ?? 19), pitch: 25, bearing: heading, duration: this.reducedMotion() ? 0 : 3000 }), () => {
@@ -494,7 +540,7 @@ export class JourneyMap {
     currentMap.on('moveend', complete);
     action();
   }
-  flyToRoutePoint(progress) {
+  flyToRoutePoint(progress, { zoom = 12.4, pitch = 50 } = {}) {
     if (!this.ready) return;
     const route = this.routes[this.stageIndex], offset = this.viewOffset ?? [0, 0];
     const center = pointAt(route, progress).map((v, i) => v + offset[i]);
@@ -502,7 +548,7 @@ export class JourneyMap {
     this.animateNavigation(() => {
       // A zero-duration flight can fire moveend before flyTo returns.
       this.routeFramed = true;
-      this.map.flyTo({ center, zoom: 12.4, pitch: 50, bearing: heading, padding: { top: 0, bottom: 0, left: 0, right: 0 }, duration: this.reducedMotion() ? 0 : 2600, curve: 1.4 });
+      this.map.flyTo({ center, zoom, pitch, bearing: heading, padding: { top: 0, bottom: 0, left: 0, right: 0 }, duration: this.reducedMotion() ? 0 : 2600, curve: 1.4 });
     });
   }
   beginEntry(target, { lockView = false } = {}) {

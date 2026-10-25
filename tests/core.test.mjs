@@ -79,6 +79,20 @@ test('a stop at the start opens once, and returning home resets the journey', ()
   assert.equal(p.state.mode, 'presentation'); assert.equal(p.state.started, false); assert.equal(p.state.progress, 0);
   p.play(); assert.equal(p.state.stopId, 'start');
 });
+
+test('empty photo points are skipped by automatic playback stops', () => {
+  const stage = { id: 'route', durationSeconds: 10, stops: [
+    { id: 'empty', progress: .25, photoIds: [] },
+    { id: 'with-photo', progress: .75, photoIds: ['photo'] }
+  ] };
+  const player = new TourPlayer([stage]);
+
+  assert.deepEqual(player.stops.map(stop => stop.id), ['with-photo']);
+  player.state.status = 'playing'; player.tick(3);
+  assert.equal(player.state.status, 'playing');
+  player.tick(5);
+  assert.equal(player.state.stopId, 'with-photo');
+});
 test('photo dates use travel-local time including midnight and daylight saving', () => {
   assert.equal(normalizeCaptureTime({ DateTimeOriginal: '2025:07:12 23:30:00', OffsetTimeOriginal: 'Z' }), '2025-07-13T01:30:00');
   assert.equal(normalizeCaptureTime({ DateTimeOriginal: '2025:01:12 23:30:00Z' }), '2025-01-13T00:30:00');
@@ -104,4 +118,16 @@ test('journey validation catches broken stop references and invalid dates', asyn
   stage.stops[0].photoIds.push('missing'); stage.date = '2025-02-30';
   const errors = validateJourney(journey);
   assert.ok(errors.some(e => e.includes('missing'))); assert.ok(errors.some(e => e.includes('Datum')));
+});
+
+test('journey validation permits empty stops and checks optional point coordinates and gallery targets', async () => {
+  const journey = JSON.parse(await readFile(new URL('../app/data/journey.json', import.meta.url), 'utf8'));
+  const stage = journey.stages.find(item => !item.isFullRoute && !item.isPointStage);
+  const stop = { id: 'empty-point', progress: .3, coordinates: [11.5, 47.2], photoIds: [] };
+  stage.stops.push(stop);
+  assert.deepEqual(validateJourney(journey), []);
+  stop.coordinates = [181, 92];
+  assert.ok(validateJourney(journey).some(error => error.includes('Koordinaten')));
+  stop.coordinates = [11.5, 47.2]; journey.photos[0].galleryTarget = 'other';
+  assert.ok(validateJourney(journey).some(error => error.includes('Galerieziel')));
 });

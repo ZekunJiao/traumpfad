@@ -125,11 +125,13 @@ GPS-Koordinaten in Fotos werden für diese Reise nicht vorausgesetzt. Der Import
 
 ### Bilder, Videos und Fotopunkte im Browser bearbeiten
 
-Starte die App mit `npm start` und klicke oben auf **Bearbeiten**. Wähle eine Etappe und einen vorhandenen Fotopunkt oder setze einen neuen Punkt auf der Karte. Zum Verschieben wählst du einen Fotopunkt und klickst auf **Ausgewählten Punkt auf Karte verschieben**; anschließend klickst du auf die gewünschte Stelle an der Route. Das funktioniert auch in der schematischen Vorschau.
+Starte die App mit `npm start` und klicke oben auf **Fotopunkt hinzufügen**. Klicke auf die Karte, um die Position festzulegen; anschließend kannst du Name und Medien bearbeiten. Einen bestehenden Fotopunkt wählst du im Editor aus und klickst auf **Ausgewählten Punkt auf Karte verschieben**. **Zu Hause · München** ist ein normaler Fotopunkt und lässt sich genauso bearbeiten und verschieben. Das funktioniert auch in der schematischen Vorschau.
 
 Über **Bilder oder Videos hinzufügen** kannst du Dateien auswählen oder sie direkt in das gestrichelte Feld ziehen. Mehrere Dateien auf einmal werden an den ausgewählten Fotopunkt gehängt, erscheinen dort der Reihe nach und zusätzlich in der Tagesgalerie. JPEG, PNG, WebP, AVIF, GIF sowie MP4, WebM und MOV bis 200 MB pro Datei werden unterstützt. Eine Collage kannst du als Bilddatei hochladen. Mit **Änderungen speichern** bleiben die Inhalte in `app/data/journey.json` und `app/assets/photos/` auf diesem Mac. Es gibt keine Übertragung an einen externen Dienst.
 
-Der feste Fotopunkt **Tag 00 · Gotzinger Platz** ist ein eigenes Lesezeichen neben den 27 Tagesetappen. Er lässt sich auf der Karte fokussieren und hat eine eigene Galerie. Der Standpunkt ist keine zusätzliche Route und kann nicht verschoben werden; Bilder lassen sich ihm im Bearbeiten-Dialog zuordnen.
+**Zu Hause · München** ist ein normaler Fotopunkt am Start der Route. Er erscheint wie die anderen Fotopunkte mit Bildmarker und Rautenmarkierung und kann über denselben Editor umbenannt, verschoben oder gelöscht werden. Seine ungefähre Position liegt im Zentrum Münchens; die genaue Wohnadresse ist nicht enthalten.
+
+Ein Klick auf einen Schlafplatzmarker springt pausiert zum Etappenziel und zoomt die Karte dorthin. Während der Wiedergabe hält die Route an jedem Schlafplatz an; vorhandene Schlafplatzbilder erscheinen dort in derselben überlagerten Einzelbildansicht wie Fotopunktbilder. Mit den Pfeilen blätterst du durch die Medien, über **Bilder bearbeiten** kannst du sie ergänzen, entfernen und per Ziehen oder Tastatur sortieren. Das Ausblenden der Bilder lässt die Karte sichtbar; Schlafplatzbilder haben keine eigene Routenraute.
 
 Für viele Originalfotos mit automatischer Tageszuordnung bleibt der unten beschriebene Import über `Material/fotos-originale/` verfügbar.
 

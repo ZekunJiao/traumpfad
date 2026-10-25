@@ -17,6 +17,10 @@ export function prepareRoute(coordinates) {
   if (length < 1) throw new Error('Die Route muss länger als einen Meter sein.');
   return { points, cumulative, length };
 }
+export function pointStageCoordinates(stage) {
+  const photoPoint = Array.isArray(stage?.stops) ? stage.stops.find(stop => Array.isArray(stop.coordinates)) : null;
+  return photoPoint?.coordinates || stage?.location?.coordinates;
+}
 export function pointAt(route, progress) {
   const position = clamp(progress) * route.length;
   let low = 1, high = route.cumulative.length - 1;
@@ -72,12 +76,14 @@ export function validateJourney(journey) {
   for (const p of photos || []) { if (!p.id || photoIds.has(p.id)) errors.push(`Doppelte oder fehlende Foto-ID: ${p.id}`); photoIds.add(p.id); }
   for (const s of stages) {
     if (!s.id || stageIds.has(s.id)) errors.push(`Doppelte oder fehlende Etappen-ID: ${s.id}`); stageIds.add(s.id);
-    const pointStage = s.isPointStage === true;
+    // Older saved journeys may serialize this flag as the string "true".
+    // The editor already treats that value as truthy; validation must agree.
+    const pointStage = s.isPointStage === true || s.isPointStage === 'true';
     if (!s.title || (!pointStage && !s.routeFile)) errors.push(`${s.id}: Titel oder Routendatei fehlt.`);
     if (pointStage) {
-      const coordinates = s.location?.coordinates;
+      const coordinates = pointStageCoordinates(s);
       if (!Array.isArray(coordinates) || coordinates.length < 2 || !coordinates.slice(0, 2).every(Number.isFinite)
-        || Math.abs(coordinates[0]) > 180 || Math.abs(coordinates[1]) > 90) errors.push(`${s.id}: Ungültige Standpunktkoordinaten.`);
+        || Math.abs(coordinates[0]) > 180 || Math.abs(coordinates[1]) > 90) errors.push(`${s.id}: Ungültige Fotopunktkoordinaten.`);
     }
     if (!Array.isArray(s.stops)) errors.push(`${s.id}: Die Fotostoppliste fehlt.`);
     if (s.date && (!/^\d{4}-\d{2}-\d{2}$/.test(s.date) || Number.isNaN(Date.parse(s.date)) || new Date(s.date).toISOString().slice(0, 10) !== s.date)) errors.push(`${s.id}: Ungültiges Datum.`);
@@ -85,11 +91,19 @@ export function validateJourney(journey) {
     for (const stop of s.stops || []) {
       if (!stop.id || stopIds.has(stop.id)) errors.push(`Doppelte oder fehlende Fotostopp-ID: ${stop.id}`); stopIds.add(stop.id);
       if (!Number.isFinite(stop.progress) || stop.progress < 0 || stop.progress > 1) errors.push(`${stop.id}: Position muss zwischen 0 und 1 liegen.`);
-      if (!stop.photoIds?.length) errors.push(`${stop.id}: Keine Bilder zugeordnet.`);
+      if (stop.photoIds !== undefined && !Array.isArray(stop.photoIds)) errors.push(`${stop.id}: Medienliste muss eine Liste sein.`);
+      if (stop.coordinates !== undefined) {
+        const coordinates = stop.coordinates;
+        if (!Array.isArray(coordinates) || coordinates.length < 2 || !coordinates.slice(0, 2).every(Number.isFinite)
+          || Math.abs(coordinates[0]) > 180 || Math.abs(coordinates[1]) > 90) errors.push(`${stop.id}: Ungültige Koordinaten für Fotopunkt.`);
+      }
       for (const id of stop.photoIds || []) if (!photoIds.has(id)) errors.push(`${stop.id}: Foto ${id} fehlt.`);
     }
   }
-  for (const p of photos || []) if (p.stageId && !stageIds.has(p.stageId)) errors.push(`${p.id}: Etappe ${p.stageId} fehlt.`);
+  for (const p of photos || []) {
+    if (p.stageId && !stageIds.has(p.stageId)) errors.push(`${p.id}: Etappe ${p.stageId} fehlt.`);
+    if (p.galleryTarget && !['day', 'sleep', 'standpoint'].includes(p.galleryTarget)) errors.push(`${p.id}: Ungültiges Galerieziel.`);
+  }
   for (const c of journey.chapters || []) for (const id of c.stageIds || []) if (!stageIds.has(id)) errors.push(`${c.id}: Etappe ${id} fehlt.`);
   return errors;
 }

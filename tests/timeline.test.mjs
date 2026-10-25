@@ -48,6 +48,32 @@ test('projects day-local photo stops onto the single playback route without chan
   assert.equal(localStop.progress, .5);
 });
 
+test('off-route coordinates project to the nearest full-route point and remain attached to the nearest day', () => {
+  const offRouteStop = { id: 'off-route', progress: .25, coordinates: [2.5, .01], title: 'Am Aussichtspunkt', photoIds: ['bild'] };
+  const stages = [wholeRoute, day(1, 0, 1), day(2, 1, 3, [offRouteStop])];
+  const timeline = buildJourneyTimeline(stages, [full]);
+  const marker = timeline.markers.flatMap(group => group.items).find(item => item.id === 'off-route');
+  const projected = projectPlaybackStops(stages, timeline, full)[0];
+
+  assert.ok(Math.abs(marker.progress - .625) < .01);
+  assert.ok(Math.abs(projected.progress - marker.progress) < 1e-12);
+  assert.equal(projected.day, 2);
+  assert.deepEqual(projected.coordinates, [2.5, .01]);
+  assert.equal(offRouteStop.progress, .25);
+});
+
+test('empty points remain timeline markers but project to route stops for editing only', () => {
+  const empty = { id: 'empty', progress: .5, title: 'Noch ohne Bild', photoIds: [] };
+  const stages = [wholeRoute, day(1, 0, 2, [empty]), day(2, 2, 4)];
+  const timeline = buildJourneyTimeline(stages, [full]);
+  const marker = timeline.markers.flatMap(group => group.items).find(item => item.id === 'empty');
+  const projected = projectPlaybackStops(stages, timeline, full);
+
+  assert.ok(marker);
+  assert.equal(projected.length, 1);
+  assert.deepEqual(projected[0].photoIds, []);
+});
+
 test('groups a photo stop with its coincident day boundary and keeps sleeping-place details', () => {
   const stages = [wholeRoute,
     day(1, 0, 1, [{ id: 'foto-ende', progress: 1, title: 'Ankunft', caption: 'Am Ziel angekommen.', photoIds: ['bild-ende'] }]),
