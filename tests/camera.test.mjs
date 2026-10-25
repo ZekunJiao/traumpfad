@@ -9,7 +9,7 @@ function cameraFixture(elevations) {
   globalThis.window = { matchMedia: () => ({ matches: false }), mapboxgl: { MercatorCoordinate: { fromLngLat: (position, height) => { altitude = height; return { position, height }; } } } };
   const view = Object.create(JourneyMap.prototype);
   Object.assign(view, {
-    progress: 0, ready: true, stageIndex: 0, exploring: false, cameraPosition: null, cameraAltitude: null,
+    progress: 0, ready: true, stageIndex: 0, exploring: false, cameraPosition: null, cameraAltitude: null, viewPitch: null, viewBearing: 0, onBearing() {},
     routes: [prepareRoute([[11, 47], [11.05, 47.05], [11.1, 47.1]])], updateSchema() {},
     map: {
       getSource: () => ({ setData() {} }), stop() {},
@@ -38,10 +38,11 @@ function transitionFixture() {
     static fromLngLat(position, height) { return new Coordinate(position[0] / 360, (90 - position[1]) / 180, height / 40000000); }
   }
   window.mapboxgl.MercatorCoordinate = Coordinate;
-  let pose = { position: new Coordinate(.02, .2, .001), orientation: [0, 0, 0, 1] }, updates = 0;
-  view.map.getFreeCameraOptions = () => ({ position: { ...pose.position }, orientation: [...pose.orientation], lookAtPoint() { this.orientation = [.3, 0, 0, Math.sqrt(.91)]; } });
+  let pose = { position: new Coordinate(.02, .2, .001), orientation: [0, 0, 0, 1] }, updates = 0, angles;
+  view.map.getFreeCameraOptions = () => ({ position: { ...pose.position }, orientation: [...pose.orientation], lookAtPoint() { this.orientation = [.3, 0, 0, Math.sqrt(.91)]; }, setPitchBearing(pitch, bearing) { angles = { pitch, bearing }; this.orientation = [Math.sin(pitch * Math.PI / 360), 0, 0, Math.cos(pitch * Math.PI / 360)]; } });
   view.map.setFreeCameraOptions = camera => { pose = { position: { ...camera.position }, orientation: [...camera.orientation] }; updates++; };
-  return { view, stats: () => ({ pose, updates }) };
+  view.map.getPitch = () => angles?.pitch ?? 55;
+  return { view, stats: () => ({ pose, updates, angles }) };
 }
 test('first play animates from the displayed camera and holds route progress until arrival', () => {
   const { view, stats } = transitionFixture();
@@ -149,4 +150,116 @@ test('a gesture cancels camera flight, freezes progress, and allows return from 
   player.play(); player.tick(.5);
   assert.equal(player.state.status, 'playing');
   assert.ok(player.state.progress > progress);
+});
+
+test('pitch control keeps a running tour playing and clamps the available viewing angles', () => {
+  const { view, player, takeovers, stats } = manualNavigationFixture();
+  player.play();
+  const entry = view.entry;
+  view.setPitch(85);
+  assert.equal(stats().angles.pitch, 85);
+  assert.equal(player.state.mode, 'presentation');
+  assert.equal(player.state.status, 'playing');
+  assert.equal(view.entry, entry);
+  view.setPitch(0);
+  assert.equal(stats().angles.pitch, 0);
+  view.setPitch(120);
+  assert.equal(stats().angles.pitch, 85);
+  view.setPitch(-10);
+  assert.equal(stats().angles.pitch, 0);
+  assert.equal(takeovers(), 0);
+  view.setPitch(NaN);
+  assert.equal(stats().angles.pitch, 0);
+});
+test('pitch control does nothing until the terrain map is ready', () => {
+  const { view, player } = manualNavigationFixture();
+  view.ready = false;
+  view.map.setPitch = () => assert.fail('unavailable maps cannot change pitch');
+  view.setPitch(85);
+  assert.equal(player.state.mode, 'presentation');
+});
+
+test('route advances while looking sideways and up, retaining the offset through route turns', () => {
+  const { view, player, stats, takeovers } = manualNavigationFixture();
+  player.play();
+  view.advanceCamera(view.entry.startedAt + view.entry.duration);
+  view.lookBy(160, -80);
+  assert.equal(stats().angles.pitch, 75);
+  assert.equal(view.viewBearing, 40);
+  const position = { ...stats().pose.position };
+  player.tick(1);
+  assert.equal(player.state.status, 'playing');
+  assert.equal(player.state.mode, 'presentation');
+  assert.equal(player.state.progress, .1);
+  assert.notDeepEqual(stats().pose.position, position);
+  assert.equal(stats().angles.pitch, 75);
+  assert.equal(stats().angles.bearing, view.followHeading + 40);
+  player.tick(1);
+  assert.equal(stats().angles.bearing, view.followHeading + 40);
+  assert.equal(takeovers(), 0);
+  view.resetView();
+  assert.equal(view.viewPitch, null);
+  assert.equal(view.viewBearing, 0);
+  assert.equal(player.state.status, 'playing');
+  assert.equal(player.state.progress, .2);
+});
+test('view adjustments during the approach survive arrival without cancelling its position transition', () => {
+  const { view, player, stats } = manualNavigationFixture();
+  player.play();
+  const entry = view.entry;
+  view.setPitch(80); view.setBearing(-60);
+  view.advanceCamera(entry.startedAt + 1100);
+  assert.equal(view.entry, entry);
+  assert.equal(stats().angles.pitch, 80);
+  assert.equal(stats().angles.bearing, view.followHeading - 60);
+  view.advanceCamera(entry.startedAt + entry.duration);
+  player.tick(.5);
+  assert.equal(stats().angles.pitch, 80);
+  assert.equal(stats().angles.bearing, view.followHeading - 60);
+  assert.equal(player.state.progress, .05);
+});
+test('pausing and resuming preserve a chosen direction, while explore still permits free panning', () => {
+  const { view, player, stats } = manualNavigationFixture();
+  player.play(); view.advanceCamera(view.entry.startedAt + view.entry.duration);
+  view.setPitch(70); view.setBearing(90);
+  player.pause(); player.tick(2);
+  assert.equal(player.state.progress, 0);
+  player.play(); player.tick(.5);
+  assert.equal(player.state.progress, .05);
+  assert.equal(stats().angles.pitch, 70);
+  assert.equal(stats().angles.bearing, view.followHeading + 90);
+  player.setMode('explore');
+  let pitch;
+  view.map.setPitch = value => { pitch = value; };
+  view.setPitch(45);
+  assert.equal(pitch, 45);
+  assert.equal(player.state.mode, 'explore');
+});
+
+test('right-button pointer gestures adjust the view without activating native pan or pausing playback', () => {
+  const { view, player, stats } = manualNavigationFixture();
+  const listeners = new Map(); let captured;
+  const surface = {
+    addEventListener(type, listener) { listeners.set(type, listener); },
+    setPointerCapture(id) { captured = id; }, hasPointerCapture(id) { return captured === id; },
+    releasePointerCapture() { captured = null; }
+  };
+  view.map.getCanvasContainer = () => surface;
+  view.bindLookControls(view.map);
+  const event = (extra = {}) => ({ button: 2, pointerId: 1, clientX: 100, clientY: 100, preventDefault() {}, stopImmediatePropagation() { this.stopped = true; }, ...extra });
+  player.play(); view.advanceCamera(view.entry.startedAt + view.entry.duration);
+  const down = event(); listeners.get('pointerdown')(down);
+  assert.equal(down.stopped, true); assert.equal(captured, 1);
+  listeners.get('pointermove')(event({ clientX: 140, clientY: 80 }));
+  assert.equal(view.viewBearing, 10);
+  assert.equal(stats().angles.pitch, 60);
+  assert.equal(player.state.status, 'playing');
+  player.tick(.5);
+  assert.equal(player.state.progress, .05);
+  listeners.get('pointerup')(event());
+  assert.equal(captured, null);
+  listeners.get('pointermove')(event({ clientX: 200 }));
+  assert.equal(view.viewBearing, 10);
+  const left = event({ button: 0 }); listeners.get('pointerdown')(left);
+  assert.equal(left.stopped, undefined);
 });

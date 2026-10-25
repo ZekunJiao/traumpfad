@@ -46,3 +46,6 @@ dialog{border:0;padding:30px;background:var(--paper);color:var(--ink);border-rad
 .main.has-collage:has(.photo-collage[data-compact=true]) .stage-card{top:64px;padding:12px 16px}.main.has-collage:has(.photo-collage[data-compact=true]) .stage-card h1{font-size:20px}
 .photo-collage[data-compact=true] .collage-heading .eyebrow{display:none}.photo-collage[data-compact=true] .collage-heading h2{font-size:16px}
 @media(prefers-reduced-motion:reduce){.photo-collage .collage-card,.photo-collage .collage-controls{transition:none!important}}
+.camera-controls{display:grid;grid-template-columns:auto minmax(60px,1fr) 3ch;align-items:center;gap:8px 12px;margin:10px 0;color:var(--ink);font-size:11px}
+.camera-controls[hidden]{display:none}.camera-controls input{width:100%;min-width:0;accent-color:var(--gold);cursor:pointer}.camera-controls output{text-align:right;font-variant-numeric:tabular-nums}.camera-controls p{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 12px;grid-column:1/-1;margin:0;color:var(--muted);font-size:10px;line-height:1.4}
+.main:has(.camera-controls:not([hidden])) .map-caption{bottom:255px}

@@ -215,6 +215,7 @@ function mapStatus(status, message) {
   const titles = { schematic: 'Schematische Vorschau', loading: 'Satellitenkarte wird geladen …', ready: 'Satellit · 3D-Gelände', error: 'Lokale Vorschau · Karte nicht verfügbar' };
   const span = element('span', 'status-dot'); $('map-status').replaceChildren(span, document.createTextNode(titles[status]));
   $('connect-button').hidden = status === 'ready';
+  $('camera-controls').hidden = status !== 'ready';
   if (status === 'error' && message) text('token-message', message);
   else if (status === 'ready' || status === 'schematic') text('token-message', '');
   if (message) notify(message);
@@ -247,7 +248,13 @@ async function init() {
   routes = routeResults;
   collage = new PhotoCollage({ loadPhoto: loadCollagePhoto, onChange: renderCollage, pageSize: collagePageSize() });
   new ResizeObserver(() => { collage.setPageSize(collagePageSize()); layoutCollage(); }).observe($('main'));
-  map = new JourneyMap({ stages: journey.stages, routes, onStop: stop => player.openStop(stop, { manual: true }), onStatus: mapStatus, onExplore: () => {
+  map = new JourneyMap({ stages: journey.stages, routes, onStop: stop => player.openStop(stop, { manual: true }), onStatus: mapStatus, onPitch: pitch => {
+    $('camera-pitch').value = String(Math.round(pitch));
+    text('camera-pitch-value', `${Math.round(pitch)}°`);
+  }, onBearing: bearing => {
+    $('camera-bearing').value = String(Math.round(bearing));
+    text('camera-bearing-value', `${Math.round(bearing)}°`);
+  }, onExplore: () => {
     player.setMode('explore');
     announce('Frei erkunden. Der Flug pausiert. Mit Präsentieren zur geführten Kamera zurückkehren.');
   } });
@@ -268,6 +275,9 @@ async function init() {
   $('previous-button').addEventListener('click', () => { closeDialogs(); player.previous(); });
   $('route-progress').addEventListener('input', e => { closeDialogs(); player.seek(Number(e.target.value) / 1000); });
   $('speed-select').addEventListener('change', e => { player.state.speed = Number(e.target.value); });
+  $('camera-pitch').addEventListener('input', event => map.setPitch(Number(event.target.value)));
+  $('camera-bearing').addEventListener('input', event => map.setBearing(Number(event.target.value)));
+  $('camera-reset').addEventListener('click', () => map.resetView());
   $('overview-button').addEventListener('click', () => { player.pause(); map.overview(); });
   $('gallery-button').addEventListener('click', openGallery);
   $('settings-button').addEventListener('click', () => { player.pause(); openDialog('settings-dialog'); refreshBrowserCache(); });

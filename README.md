@@ -70,12 +70,14 @@ Ein zweiter geprüfter Download vom [GPS Wanderatlas](https://www.ich-geh-wander
 | Vollbild | Schaltfläche oben rechts oder `F` |
 | Etappe überspringen | Etappe links auswählen |
 | Gesamte Strecke einrahmen | „Übersicht“ |
-| Frei navigieren | Karte mit der Maus steuern oder „Erkunden“ wählen; der Flug pausiert. Mit „Präsentieren“ zum gespeicherten Stand zurück |
+| Frei navigieren | Mit linker Maustaste verschieben, zoomen oder „Erkunden“ wählen; der Flug pausiert. Mit „Präsentieren“ zum gespeicherten Stand zurück |
 | Karte zoomen | Mausrad / Trackpad scrollen oder Doppelklick; Umschalt + Doppelklick zoomt heraus |
 | Karte verschieben | Linke Maustaste halten und ziehen |
-| Kamera drehen / neigen | Rechte Maustaste halten und seitlich / nach oben oder unten ziehen |
+| Während des Flugs umsehen | Rechte Maustaste halten und ziehen: links/rechts dreht den Blick, hoch/runter neigt ihn. Der Flug folgt weiter der Route. |
+| Blickrichtung einstellen | Regler „Blickrichtung“: 0° schaut nach vorn entlang der Route, negative Werte nach links, positive nach rechts. „Blick nach vorn“ stellt die automatische Sicht wieder her. |
+| Blick auf entfernte Berge | Regler „Blickwinkel“ Richtung Fernblick bewegen: 0° ist Draufsicht, 85° blickt fast zum Horizont |
 
-Die Maussteuerung gilt für die verbundene Mapbox-Karte. Beim ersten Zoom oder Ziehen wechselt die App ohne neuen Anflug ins Erkunden und hält den Präsentationsstand fest. „Präsentieren“ führt die Kamera zum gespeicherten Stand zurück; ▶ setzt den Flug fort. Automatische Kamerafahrten lösen diesen Wechsel nicht aus.
+Die Maussteuerung gilt für die verbundene Mapbox-Karte. Zoom und Verschieben mit der linken Maustaste wechseln ohne neuen Anflug ins Erkunden und halten den Präsentationsstand fest. Die rechte Maustaste (am Mac auch Ctrl + linke Maustaste) sowie die Regler für Blickwinkel und Blickrichtung steuern dagegen nur die Sicht: Während der Präsentation folgt die Kameraposition weiter der Route, die Wiedergabe läuft weiter. Die Blickrichtung bleibt relativ zur Route erhalten, auch in Kurven. „Präsentieren“ führt die Kamera zum gespeicherten Stand zurück; ▶ setzt den Flug fort. Automatische Kamerafahrten lösen diesen Wechsel nicht aus.
 
 An Fotostopps und am Ende einer Etappe pausiert der Flug. Nach dem Kameraanflug erscheinen die Bilder als Collage direkt über der weiterhin bedienbaren Karte: 650 ms Einblendung, 150 ms Versatz und 400 ms Ausblendung. Auf schmalen oder niedrigen Bildschirmen erscheint jeweils ein Bild; die Einstellung für reduzierte Bewegung wird berücksichtigt. Die Tagesgalerie verwendet weiterhin ihre eigene Bildansicht. Nach dem letzten Tag startet Play die Reise erneut. Beim Wechsel in einen anderen Browser-Tab wird der Flug pausiert. Im Vollbild bleiben die Quellenangaben sichtbar. Auf schmalen Bildschirmen steht die Etappenliste unter der Karte.
 

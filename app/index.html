@@ -50,8 +50,13 @@
 
       <section class="player" id="player-controls-anchor" aria-label="Präsentationssteuerung">
         <div class="player-heading"><div><span class="eyebrow" id="player-kicker">DEIN ABENTEUER</span><strong id="player-title">Der erste Schritt wartet.</strong></div><span id="player-time" class="player-time">01 / 07</span></div>
+        <div id="camera-controls" class="camera-controls" hidden>
+          <label for="camera-pitch">Blickwinkel</label><input id="camera-pitch" type="range" min="0" max="85" step="1" value="55" aria-describedby="camera-pitch-help"><output id="camera-pitch-value" for="camera-pitch">55°</output>
+          <label for="camera-bearing">Blickrichtung</label><input id="camera-bearing" type="range" min="-180" max="180" step="1" value="0" aria-describedby="camera-pitch-help"><output id="camera-bearing-value" for="camera-bearing">0°</output>
+          <p id="camera-pitch-help">Rechte Maustaste + Ziehen: umsehen. Der Flug läuft weiter. <button id="camera-reset" type="button" class="text-button small">Blick nach vorn ↗</button></p>
+        </div>
         <label class="sr-only" for="route-progress">Fortschritt der Etappe</label><input id="route-progress" class="route-progress" type="range" min="0" max="1000" value="0" step="1" aria-valuetext="Noch nicht gestartet">
-        <div class="player-controls"><div class="transport"><button id="previous-button" class="transport-button" aria-label="Vorheriger Fotostopp">⏮</button><button id="play-button" class="play-button" aria-label="Flug starten">▶</button><button id="next-button" class="transport-button" aria-label="Nächster Fotostopp">⏭</button><span id="player-status" class="player-status">Bereit zum Aufbruch</span></div><div class="player-options"><label for="speed-select" class="sr-only">Fluggeschwindigkeit</label><select id="speed-select" aria-label="Fluggeschwindigkeit"><option value="0.5">0,5×</option><option value="1" selected>1×</option><option value="2">2×</option></select><button class="text-button small" id="overview-button">Übersicht ↗</button></div></div>
+        <div class="player-controls"><div class="transport"><button id="previous-button" class="transport-button" aria-label="Vorheriger Fotostopp">⏮</button><button id="play-button" class="play-button" aria-label="Flug starten">▶</button><button id="next-button" class="transport-button" aria-label="Nächster Fotostopp">⏭</button><span id="player-status" class="player-status">Bereit zum Aufbruch</span></div><div class="player-options"><label for="speed-select" class="sr-only">Fluggeschwindigkeit</label><select id="speed-select" aria-label="Fluggeschwindigkeit"><option value="0.5">0,5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="3">3×</option><option value="4">4×</option><option value="5">5×</option></select><button class="text-button small" id="overview-button">Übersicht ↗</button></div></div>
       </section>
     </main>
   </div>
