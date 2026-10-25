@@ -146,6 +146,7 @@ function mapStatus(status, message) {
   const titles = { schematic: 'Schematische Vorschau', loading: 'Satellitenkarte wird geladen …', ready: 'Satellit · 3D-Gelände', error: 'Lokale Vorschau · Karte nicht verfügbar' };
   const span = element('span', 'status-dot'); $('map-status').replaceChildren(span, document.createTextNode(titles[status]));
   $('connect-button').hidden = status === 'ready';
+  $('camera-controls').hidden = status !== 'ready';
   if (status === 'error' && message) text('token-message', message);
   else if (status === 'ready' || status === 'schematic') text('token-message', '');
   if (message) notify(message);
@@ -176,7 +177,10 @@ async function init() {
     return prepareRoute(geometry.coordinates);
   }));
   routes = routeResults;
-  map = new JourneyMap({ stages: journey.stages, routes, onStop: stop => player.openStop(stop), onStatus: mapStatus, onExplore: () => {
+  map = new JourneyMap({ stages: journey.stages, routes, onStop: stop => player.openStop(stop), onStatus: mapStatus, onPitch: pitch => {
+    $('camera-pitch').value = String(Math.round(pitch));
+    text('camera-pitch-value', `${Math.round(pitch)}°`);
+  }, onExplore: () => {
     player.setMode('explore');
     announce('Frei erkunden. Der Flug pausiert. Mit Präsentieren zur geführten Kamera zurückkehren.');
   } });
@@ -197,6 +201,7 @@ async function init() {
   $('previous-button').addEventListener('click', () => { closeDialogs(); player.previous(); });
   $('route-progress').addEventListener('input', e => { closeDialogs(); player.seek(Number(e.target.value) / 1000); });
   $('speed-select').addEventListener('change', e => { player.state.speed = Number(e.target.value); });
+  $('camera-pitch').addEventListener('input', event => map.setPitch(Number(event.target.value)));
   $('overview-button').addEventListener('click', () => { player.pause(); map.overview(); });
   $('gallery-button').addEventListener('click', openGallery);
   $('settings-button').addEventListener('click', () => { player.pause(); openDialog('settings-dialog'); refreshBrowserCache(); });

@@ -150,3 +150,31 @@ test('a gesture cancels camera flight, freezes progress, and allows return from 
   assert.equal(player.state.status, 'playing');
   assert.ok(player.state.progress > progress);
 });
+
+test('pitch control pauses a running tour and reaches horizon and overhead without reframing', () => {
+  const { view, player, takeovers } = manualNavigationFixture();
+  let pitch = 55;
+  view.map.setPitch = value => { pitch = value; };
+  player.play();
+  view.setPitch(85);
+  assert.equal(pitch, 85);
+  assert.equal(player.state.mode, 'explore');
+  assert.equal(player.state.status, 'paused');
+  assert.equal(view.entry, null);
+  view.setPitch(0);
+  assert.equal(pitch, 0);
+  view.setPitch(120);
+  assert.equal(pitch, 85);
+  view.setPitch(-10);
+  assert.equal(pitch, 0);
+  assert.equal(takeovers(), 1);
+  view.setPitch(NaN);
+  assert.equal(pitch, 0);
+});
+test('pitch control does nothing until the terrain map is ready', () => {
+  const { view, player } = manualNavigationFixture();
+  view.ready = false;
+  view.map.setPitch = () => assert.fail('unavailable maps cannot change pitch');
+  view.setPitch(85);
+  assert.equal(player.state.mode, 'presentation');
+});

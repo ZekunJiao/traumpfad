@@ -61,6 +61,7 @@ Die Struktur ist auf beliebig viele Etappen vorbereitet. Alle 27 persönlichen R
 | Karte zoomen | Mausrad / Trackpad scrollen oder Doppelklick; Umschalt + Doppelklick zoomt heraus |
 | Karte verschieben | Linke Maustaste halten und ziehen |
 | Kamera drehen / neigen | Rechte Maustaste halten und seitlich / nach oben oder unten ziehen |
+| Blick auf entfernte Berge | Regler „Blickwinkel“ Richtung Fernblick bewegen: 0° ist Draufsicht, 85° blickt fast zum Horizont |
 
 Die Maussteuerung gilt für die verbundene Mapbox-Karte. Beim ersten Zoom oder Ziehen wechselt die App ohne neuen Anflug ins Erkunden und hält den Präsentationsstand fest. „Präsentieren“ führt die Kamera zum gespeicherten Stand zurück; ▶ setzt den Flug fort. Automatische Kamerafahrten lösen diesen Wechsel nicht aus.
 
