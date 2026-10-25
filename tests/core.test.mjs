@@ -48,6 +48,19 @@ test('seeking never causes a stale stop to reopen', () => {
   const p = new TourPlayer(stages); p.next(); p.seek(.7); p.play(); p.tick(1);
   assert.equal(p.state.stopId, null); assert.ok(p.state.progress > .7);
 });
+test('route seeking changes stage and position while preserving playing or paused state', () => {
+  const p = new TourPlayer(stages, () => {});
+  p.play(); p.seekTo(1, .25);
+  assert.equal(p.state.stageIndex, 1); assert.equal(p.state.progress, .25); assert.equal(p.state.status, 'playing');
+  p.pause(); p.seekTo(0, .6);
+  assert.equal(p.state.stageIndex, 0); assert.equal(p.state.progress, .6); assert.equal(p.state.status, 'paused');
+  assert.equal(p.state.stopId, null);
+});
+test('route seeking during exploration updates the saved presentation position', () => {
+  const p = new TourPlayer(stages);
+  p.play(); p.tick(2); p.setMode('explore'); p.seekTo(1, .6); p.setMode('presentation');
+  assert.equal(p.state.stageIndex, 1); assert.equal(p.state.progress, .6); assert.equal(p.state.status, 'paused');
+});
 test('a stop at the start opens once, and returning home resets the journey', () => {
   const p = new TourPlayer([{ id: 'one', durationSeconds: 10, stops: [{ id: 'start', progress: 0 }] }]);
   p.play(); assert.equal(p.state.stopId, 'start');

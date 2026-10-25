@@ -43,7 +43,7 @@ export function destination(point, meters, heading) {
   const nextLon = lon + Math.atan2(Math.sin(b) * Math.sin(angular) * Math.cos(lat), Math.cos(angular) - Math.sin(lat) * Math.sin(nextLat));
   return [nextLon * 180 / Math.PI, nextLat * 180 / Math.PI];
 }
-export function feature(coordinates) { return { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates } }; }
+export function feature(coordinates, properties = {}) { return { type: 'Feature', properties, geometry: { type: 'LineString', coordinates } }; }
 
 export function validateJourney(journey) {
   const errors = [], stages = journey?.stages, photos = journey?.photos;

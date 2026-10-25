@@ -54,6 +54,39 @@ dialog{border:0;padding:30px;background:var(--paper);color:var(--ink);border-rad
 .main .map-caption{bottom:100px}
 @media(max-width:760px){.player{gap:10px;padding:8px 0}.main .map-caption{bottom:92px}.player .play-button{flex-basis:40px;width:40px;height:40px}}
 
+/* The full-route player derives its chapter bands and point marks from journey data. */
+.route-timeline{position:relative;display:flex;align-items:center;flex:1;min-width:0;height:36px}
+.player .route-timeline .route-progress{position:relative;z-index:2;display:block;flex:none;width:100%;height:32px;margin:0;appearance:none;-webkit-appearance:none;background:transparent;cursor:pointer;filter:none}
+.route-progress::-webkit-slider-runnable-track{height:6px;border-radius:8px;background:transparent}
+.route-progress::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;margin-top:-4px;border:2px solid #fff;border-radius:50%;background:var(--gold);box-shadow:0 1px 5px #0008}
+.route-progress::-moz-range-track{height:6px;border-radius:8px;background:transparent}
+.route-progress::-moz-range-thumb{width:10px;height:10px;border:2px solid #fff;border-radius:50%;background:var(--gold);box-shadow:0 1px 5px #0008}
+.timeline-track{position:absolute;z-index:1;inset:0 7px auto;height:6px;top:50%;transform:translateY(-50%);overflow:hidden;border-radius:8px;background:#f4f1e9a6;box-shadow:0 1px 3px #0007}
+.timeline-day{position:absolute;inset:0 auto 0;background:#e8c183b3;border-right:1px solid #173a35a6}
+.timeline-day.is-alternate{background:#f4f1e9a8}
+.timeline-progress-fill{position:absolute;inset:0 auto 0 0;z-index:2;background:#a66f2ad9;pointer-events:none}
+.timeline-markers{position:absolute;z-index:3;inset:0 7px;pointer-events:none}
+.timeline-marker{position:absolute;top:50%;display:grid;place-items:center;width:16px;height:26px;padding:0;transform:translate(-50%,-50%);border-radius:4px;background:transparent;pointer-events:auto}
+.timeline-marker.is-cluster{width:24px}
+.timeline-marker-count{position:absolute;top:0;left:50%;transform:translateX(-50%);font-size:8px;font-weight:700;line-height:1;color:#fff;text-shadow:0 1px 3px #000;white-space:nowrap}
+.timeline-marker::before{content:"";display:block;width:2px;height:13px;border-radius:2px;background:#fff;box-shadow:0 1px 3px #000a}
+.timeline-marker.has-photo::before{width:8px;height:8px;border:2px solid #fff;border-radius:50%;background:var(--gold)}
+.timeline-marker.is-day.has-photo::before{width:9px;height:9px;border:2px solid #fff;border-radius:2px;background:var(--forest);transform:rotate(45deg)}
+.timeline-marker:hover::before,.timeline-marker:focus-visible::before{background:#f3c773;box-shadow:0 0 0 3px #f3c77366,0 1px 4px #000a}
+.timeline-tooltip{position:absolute;z-index:8;bottom:calc(100% + 8px);left:0;min-width:190px;max-width:min(320px,calc(100vw - 40px));max-height:min(220px,45vh);overflow:auto;padding:11px 13px;border:1px solid #d6d3c8;border-radius:5px;background:var(--paper);color:var(--ink);box-shadow:0 5px 24px #061e2180;transform:translateX(-50%);pointer-events:none;text-align:left}
+.timeline-tooltip-entry{display:grid;gap:4px}
+.timeline-tooltip-entry+.timeline-tooltip-entry{margin-top:9px;padding-top:9px;border-top:1px solid var(--line)}
+.timeline-tooltip.is-interactive{pointer-events:auto}
+.timeline-tooltip-jump{justify-self:start;margin-top:3px;padding:5px 8px;border:1px solid #183b3640;border-radius:3px;background:#e8e9df;color:var(--forest);font-size:10px}
+.timeline-tooltip-jump:hover{background:#dfe4d9}
+.timeline-tooltip-kicker{font-size:8px;font-weight:700;letter-spacing:1.1px;color:#97723b}
+.timeline-tooltip-title{font:17px/1.15 var(--serif)}
+.timeline-tooltip-route,.timeline-tooltip-sleep{font-size:10px;line-height:1.45;color:#536458}
+.timeline-tooltip-copy{margin:2px 0 0;font-size:10px;line-height:1.5;color:#6c796b}
+.route-timeline:not([data-full-route="true"]) .timeline-track,.route-timeline:not([data-full-route="true"]) .timeline-markers{display:none}
+@media(max-width:760px){.route-timeline{height:40px}.timeline-tooltip{min-width:0;width:min(290px,calc(100vw - 40px));max-height:30vh}.timeline-marker{width:20px;height:30px}.timeline-marker.is-cluster{width:28px}}
+@media(pointer:coarse){.timeline-marker,.timeline-marker.is-cluster{width:44px;height:44px}}
+
 .camera-compass{position:absolute;top:18px;left:50%;transform:translateX(-50%);z-index:3;display:flex;align-items:center;gap:9px;padding:5px 10px 5px 5px;border:1px solid #f4f1e92b;border-radius:28px;background:#102b2877;color:#f4f1e9;pointer-events:none;font-size:11px;font-variant-numeric:tabular-nums;text-shadow:0 1px 3px #0008}
 .camera-compass[hidden]{display:none}.compass-dial{position:relative;display:block;width:36px;height:36px;border:1px solid #f4f1e955;border-radius:50%}.compass-north{position:absolute;inset:0;text-align:center;font-size:8px;line-height:11px;transform-origin:center}.compass-north>span{display:block;font-size:9px;line-height:9px;color:var(--gold)}.compass-center{position:absolute;inset:0;display:grid;place-items:center;font-size:12px}
 @media(max-width:760px){.camera-compass{left:auto;right:20px;top:18px;transform:none;font-size:10px}}

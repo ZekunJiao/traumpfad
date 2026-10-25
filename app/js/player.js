@@ -49,6 +49,17 @@ export class TourPlayer {
     if (this.state.progress === 0) this.state.shownStartStop = false;
     this.emit('seek');
   }
+  seekTo(stageIndex, progress) {
+    const wasPlaying = this.state.status === 'playing';
+    const nextStage = clamp(stageIndex, 0, this.stages.length - 1);
+    const nextProgress = clamp(progress);
+    const shownStartStop = nextProgress === 0 ? wasPlaying : this.state.shownStartStop;
+    Object.assign(this.state, { stageIndex: nextStage, progress: nextProgress, status: wasPlaying ? 'playing' : 'paused', stopId: null, started: true, shownStartStop });
+    if (this.state.mode === 'explore' && this.savedPresentation) {
+      Object.assign(this.savedPresentation, { stageIndex: nextStage, progress: nextProgress, status: 'paused', stopId: null, started: true, shownStartStop });
+    }
+    this.emit('route-seek');
+  }
   openStop(stop, { manual = false } = {}) {
     Object.assign(this.state, { progress: stop.progress, stopId: stop.id, status: 'stop', started: true });
     if (stop.progress === 0) this.state.shownStartStop = true;

@@ -18,7 +18,7 @@ test('diagnostics never expose access tokens from failed resource URLs', () => {
 test('a rejected connection is disposed so stale requests cannot obscure its cause', () => {
   let removed = false, message;
   const map = Object.create(JourneyMap.prototype);
-  Object.assign(map, { map: { stop() {}, remove() { removed = true; } }, ready: true, markers: [], container: { hidden: true }, onStatus: (_, text) => { message = text; } });
+  Object.assign(map, { map: { stop() {}, remove() { removed = true; } }, ready: true, markers: [], landmarkMarkers: [], container: { hidden: true }, onStatus: (_, text) => { message = text; } });
   map.fail('HTTP 401');
   assert.equal(removed, true); assert.equal(map.map, null); assert.equal(map.ready, false);
   assert.equal(map.container.hidden, false); assert.equal(message, 'HTTP 401');

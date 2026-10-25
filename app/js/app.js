@@ -1,11 +1,12 @@
 import { initDiskCache } from './disk-cache-ui.js';
-import { prepareRoute, validateJourney } from './route.js';
+import { clamp, prepareRoute, validateJourney } from './route.js';
 import { TourPlayer } from './player.js';
 import { JourneyMap } from './map.js';
 import { checkMapboxConnection } from './token-check.js';
 import { readBrowserMapCache, describeBrowserMapCache } from './browser-cache.js';
 import { PhotoCollage, decodePhotoNode } from './photo-collage.js';
 import { PhotoTransition } from './photo-transition.js';
+import { buildJourneyTimeline, timelineSegmentAt, visibleTimelineMarkerGroups } from './timeline.js';
 const photoMotion = new PhotoTransition();
 let photoExitPending = false;
 const playbackSpeeds = [.5, 1, 2, 3, 4, 5, 10, 20, 50];
@@ -16,7 +17,7 @@ const text = (id, value) => { $(id).textContent = value ?? ''; };
 const formatDay = stage => stage.isFullRoute ? 'GESAMTSTRECKE' : `TAG ${String(stage.day).padStart(2, '0')}`;
 const formatDate = value => value ? new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'long', timeZone: 'Europe/Berlin' }).format(new Date(value + 'T12:00:00')) : 'Datum noch offen';
 const dialogs = [...document.querySelectorAll('dialog')];
-let journey, player, map, routes, collage, currentPhotoIds = [], currentPhotoIndex = 0, lastStage = -1, renderStatus = '', lastFrame = 0, noticeTimer, collageHideTimer, collageRevision = 0;
+let journey, player, map, routes, collage, journeyTimeline, currentPhotoIds = [], currentPhotoIndex = 0, lastStage = -1, renderStatus = '', lastFrame = 0, noticeTimer, collageHideTimer, collageRevision = 0;
 
 function announce(message) { text('live-region', message); }
 function notify(message) {
@@ -27,6 +28,145 @@ function notify(message) {
 function closeDialogs() { for (const d of dialogs) if (d.open) d.close(); }
 function openDialog(id) { if (!$(id).open) $(id).showModal(); }
 function element(tag, className, content) { const el = document.createElement(tag); if (className) el.className = className; if (content !== undefined) el.textContent = content; return el; }
+function timelineDayLabel(day) { return `Tag ${day}`; }
+function hideTimelineTooltip() { $('timeline-tooltip').hidden = true; }
+function maybeHideTimelineTooltip(event) {
+  const tooltip = $('timeline-tooltip');
+  if (tooltip.contains(event?.relatedTarget) || tooltip.matches(':hover') || tooltip.contains(document.activeElement)) return;
+  if ($('timeline-markers').contains(document.activeElement) || document.activeElement === $('route-progress')) return;
+  if ($('timeline-markers').querySelector(':hover')) return;
+  hideTimelineTooltip();
+}
+function positionTimelineTooltip(clientX, progress) {
+  const root = $('route-timeline'), tooltip = $('timeline-tooltip'), bounds = root.getBoundingClientRect();
+  const inset = 7;
+  const pointerX = Number.isFinite(clientX) ? clientX - bounds.left : inset + clamp(progress) * Math.max(0, bounds.width - inset * 2);
+  const half = tooltip.offsetWidth / 2;
+  const x = Math.max(Math.min(half, bounds.width / 2), Math.min(pointerX, Math.max(bounds.width - half, bounds.width / 2)));
+  tooltip.style.left = `${x}px`;
+}
+function showTimelineTooltip(items, clientX, progress, { interactive = false } = {}) {
+  const tooltip = $('timeline-tooltip');
+  tooltip.replaceChildren();
+  for (const item of items) {
+    const entry = element('div', 'timeline-tooltip-entry');
+    if (item.kind === 'day') {
+      const segment = item.segment;
+      entry.append(element('span', 'timeline-tooltip-kicker', `${timelineDayLabel(segment.day)} · ETAPPE`));
+      entry.append(element('strong', 'timeline-tooltip-title', segment.title));
+      entry.append(element('span', 'timeline-tooltip-route', `${segment.startPlace} → ${segment.endPlace}`));
+      if (segment.description) entry.append(element('p', 'timeline-tooltip-copy', segment.description));
+      if (segment.sleepPlace) entry.append(element('span', 'timeline-tooltip-sleep', `${segment.confirmedSleepPlace ? 'Übernachtung' : 'Etappenziel · Schlafplatz offen'}: ${segment.sleepPlace}`));
+    } else {
+      entry.append(element('span', 'timeline-tooltip-kicker', `FOTOPUNKT · ${timelineDayLabel(item.day)}`));
+      entry.append(element('strong', 'timeline-tooltip-title', item.title));
+      if (item.stageTitle) entry.append(element('span', 'timeline-tooltip-route', item.stageTitle));
+      if (item.description) entry.append(element('p', 'timeline-tooltip-copy', item.description));
+    }
+    if (interactive) {
+      const jump = element('button', 'timeline-tooltip-jump', 'Zu diesem Punkt springen');
+      jump.type = 'button';
+      jump.addEventListener('click', () => {
+        const target = Number.isFinite(item.progress) ? item.progress : item.segment?.end;
+        if (!Number.isFinite(target)) return;
+        closeDialogs(); player.seek(target); announce(timelineItemSummary(item));
+      });
+      entry.append(jump);
+    }
+    tooltip.append(entry);
+  }
+  tooltip.hidden = !items.length;
+  tooltip.classList.toggle('is-interactive', interactive);
+  tooltip.setAttribute('role', interactive ? 'group' : 'tooltip');
+  if (interactive) tooltip.setAttribute('aria-label', 'Nahe Routenpunkte und Sprungziele');
+  else tooltip.removeAttribute('aria-label');
+  if (!tooltip.hidden) positionTimelineTooltip(clientX, progress);
+}
+function timelineItemSummary(item) {
+  if (item.kind === 'day') {
+    const segment = item.segment;
+    return `${timelineDayLabel(segment.day)}: ${segment.title}, ${segment.startPlace} bis ${segment.endPlace}. ${segment.description}${segment.sleepPlace ? ` ${segment.confirmedSleepPlace ? 'Übernachtung' : 'Schlafplatz offen, Etappenziel'}: ${segment.sleepPlace}.` : ''}`;
+  }
+  return `Fotopunkt ${timelineDayLabel(item.day)}: ${item.title}. ${item.description}`;
+}
+function renderTimelineMarkers(model) {
+  const markers = $('timeline-markers');
+  const width = markers.clientWidth || Math.max(0, $('route-timeline').clientWidth - 14);
+  const spacing = matchMedia('(pointer: coarse)').matches ? 44 : 24;
+  const groups = visibleTimelineMarkerGroups(model, width, spacing);
+  const signature = groups.map(group => group.key).join('||');
+  if (markers.dataset.layoutSignature === signature) return;
+  const activeKey = markers.querySelector('.timeline-marker:focus')?.dataset.markerKeys?.split('|')[0];
+  markers.replaceChildren();
+  markers.dataset.layoutSignature = signature;
+  for (const group of groups) {
+    const hasDay = group.items.some(item => item.kind === 'day');
+    const hasPhoto = group.items.some(item => item.kind === 'photo');
+    const button = element('button', `timeline-marker${hasDay ? ' is-day' : ''}${hasPhoto ? ' has-photo' : ''}${group.items.length > 1 ? ' is-cluster' : ''}${group.needsChoice ? ' needs-choice' : ''}`);
+    button.type = 'button';
+    button.style.left = `${group.progress * 100}%`;
+    button.dataset.markerKeys = group.key;
+    button.setAttribute('aria-label', group.items.length > 1
+      ? `${group.items.length} nahe Routenmarken: ${group.items.map(timelineItemSummary).join(' ')}. Fokus oder Antippen zeigt die einzelnen Sprungziele.`
+      : group.items.map(timelineItemSummary).join(' '));
+    button.setAttribute('aria-describedby', 'timeline-tooltip');
+    if (group.items.length > 1) button.append(element('span', 'timeline-marker-count', String(group.items.length)));
+    const show = clientX => showTimelineTooltip(group.items, clientX, group.progress, { interactive: group.needsChoice });
+    button.addEventListener('pointerenter', event => show(event.clientX));
+    button.addEventListener('pointerleave', event => { if (event.pointerType !== 'touch') maybeHideTimelineTooltip(event); });
+    button.addEventListener('focus', () => show(button.getBoundingClientRect().left + button.offsetWidth / 2));
+    button.addEventListener('blur', event => maybeHideTimelineTooltip(event));
+    button.addEventListener('click', () => {
+      closeDialogs();
+      if (group.needsChoice) {
+        show(button.getBoundingClientRect().left + button.offsetWidth / 2);
+        announce(`${group.items.length} nahe Routenmarken. Wähle im Hinweis den gewünschten Punkt.`);
+        return;
+      }
+      player.seek(group.progress);
+      show(button.getBoundingClientRect().left + button.offsetWidth / 2);
+      announce(group.items.map(timelineItemSummary).join(' '));
+    });
+    markers.append(button);
+    if (activeKey && group.key.split('|').includes(activeKey)) button.focus({ preventScroll: true });
+  }
+}
+function setupTimeline(model) {
+  const track = $('timeline-track');
+  track.replaceChildren();
+  model.segments.forEach((segment, index) => {
+    const band = element('span', `timeline-day${index % 2 ? ' is-alternate' : ''}`);
+    band.style.left = `${segment.start * 100}%`;
+    band.style.width = `${(segment.end - segment.start) * 100}%`;
+    band.setAttribute('aria-hidden', 'true');
+    track.append(band);
+  });
+  track.append(element('span', 'timeline-progress-fill'));
+  renderTimelineMarkers(model);
+  requestAnimationFrame(() => renderTimelineMarkers(model));
+}
+function updateTimeline(state) {
+  const fullRoute = Boolean(player.stage.isFullRoute), progress = clamp(state.progress);
+  const root = $('route-timeline'), track = $('timeline-track'), markers = $('timeline-markers');
+  root.dataset.fullRoute = String(fullRoute);
+  track.hidden = !fullRoute; markers.hidden = !fullRoute;
+  $('route-progress-label').textContent = fullRoute ? 'Fortschritt der Gesamtstrecke München bis Venedig' : 'Fortschritt der Etappe';
+  const fill = track.querySelector('.timeline-progress-fill');
+  if (fill) fill.style.width = `${progress * 100}%`;
+  if (!fullRoute) {
+    $('route-progress').removeAttribute('aria-describedby');
+    $('route-progress').setAttribute('aria-valuetext', `${Math.round(progress * 100)} Prozent der Etappe`);
+    hideTimelineTooltip(); return;
+  }
+
+  $('route-progress').setAttribute('aria-describedby', 'timeline-tooltip');
+  let valueText = `${Math.round(progress * 100)} Prozent der Gesamtstrecke`;
+  const segment = timelineSegmentAt(journeyTimeline.segments, progress);
+  if (segment) valueText = `${timelineDayLabel(segment.day)} · ${Math.round(progress * 100)} Prozent der Gesamtstrecke`;
+  else valueText += ' · Etappenzuordnung folgt';
+  $('route-progress').setAttribute('aria-valuetext', valueText);
+  if (document.activeElement === $('route-progress')) showTimelineTooltip(segment ? [{ kind: 'day', segment }] : [], undefined, progress);
+}
 function placeholder(photo) {
   const box = element('div', 'sample-image');
   box.append(element('span', 'sample-symbol', '↟'), element('p', 'eyebrow', 'PLATZ FÜR DEINE ERINNERUNG'), element('h3', '', photo?.title || 'Dein Foto'), element('p', '', 'Hier erscheint später dein persönliches Foto.'));
@@ -188,13 +328,13 @@ function render(state, reason) {
     preloadNext();
   }
   $('route-progress').value = String(Math.round(state.progress * 1000));
-  $('route-progress').setAttribute('aria-valuetext', `${Math.round(state.progress * 100)} Prozent der Etappe`);
+  updateTimeline(state);
   const speedIndex = playbackSpeeds.indexOf(state.speed);
   $('speed-range').value = String(speedIndex < 0 ? 1 : speedIndex);
   $('speed-range').setAttribute('aria-valuetext', speedLabel(state.speed));
   $('speed-value').value = speedLabel(state.speed);
   if (reason === 'pause') map.pauseCamera();
-  if (reason === 'stop-jump' || reason === 'seek') map.focusStop(state.progress);
+  if (reason === 'stop-jump' || reason === 'seek' || reason === 'route-seek') map.focusStop(state.progress);
   else map.setProgress(state.progress, state.started && state.mode === 'presentation' && (state.status === 'playing' || reason === 'seek' || reason === 'stop'), Math.max(.016, (performance.now() - lastFrame) / 1000));
   if (reason === 'tick') return;
   for (const button of document.querySelectorAll('[data-mode]')) button.setAttribute('aria-pressed', String(button.dataset.mode === state.mode));
@@ -299,8 +439,9 @@ async function init() {
   }));
   routes = routeResults;
   collage = new PhotoCollage({ loadPhoto: loadCollagePhoto, onChange: renderCollage, pageSize: collagePageSize() });
-  new ResizeObserver(() => { collage.setPageSize(collagePageSize()); layoutCollage(); }).observe($('main'));
-  map = new JourneyMap({ stages: journey.stages, routes, onStop: stop => player.openStop(stop, { manual: true }), onStatus: mapStatus, createStopPreview: stopPreview, onHeading: bearing => {
+  const layoutObserver = new ResizeObserver(() => { collage.setPageSize(collagePageSize()); layoutCollage(); if (journeyTimeline) renderTimelineMarkers(journeyTimeline); });
+  layoutObserver.observe($('main')); layoutObserver.observe($('route-timeline'));
+  map = new JourneyMap({ stages: journey.stages, routes, onStop: stop => player.openStop(stop, { manual: true }), onRouteSeek: (stageIndex, progress) => player.seekTo(stageIndex, progress), onStatus: mapStatus, createStopPreview: stopPreview, onHeading: bearing => {
     if (!Number.isFinite(bearing)) return;
     const degrees = ((bearing % 360) + 360) % 360;
     const direction = ['N', 'NO', 'O', 'SO', 'S', 'SW', 'W', 'NW'][Math.round(degrees / 45) % 8];
@@ -312,6 +453,8 @@ async function init() {
     announce('Frei erkunden. Der Flug pausiert. Mit Präsentieren zur geführten Kamera zurückkehren.');
   } });
   player = new TourPlayer(journey.stages, render);
+  journeyTimeline = buildJourneyTimeline(journey.stages, routes);
+  setupTimeline(journeyTimeline);
   buildNavigation();
   $('demo-label').hidden = !journey.demo;
   $('cover-note').textContent = journey.routeDownload ? '27 Tagesetappen in vier Wochen · Referenztrack mit Fotobeispielen.' : journey.demo ? 'Beispiele für Etappen und Bilder · deine Erinnerungen folgen.' : 'Deine Etappen. Deine Bilder. Dein Tempo.';
@@ -328,6 +471,20 @@ async function init() {
   $('start-button').addEventListener('click', () => player.play());
   $('play-button').addEventListener('click', () => { closeDialogs(); collage.active ? finishPhoto() : player.toggle(); });
   $('route-progress').addEventListener('input', e => { closeDialogs(); player.seek(Number(e.target.value) / 1000); });
+  $('route-progress').addEventListener('pointermove', event => {
+    if (event.pointerType === 'touch' || !player.stage.isFullRoute) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const inset = 7;
+    const progress = clamp((event.clientX - bounds.left - inset) / Math.max(1, bounds.width - inset * 2));
+    const segment = timelineSegmentAt(journeyTimeline.segments, progress);
+    if (segment) showTimelineTooltip([{ kind: 'day', segment }], event.clientX, progress);
+    else hideTimelineTooltip();
+  });
+  $('route-progress').addEventListener('pointerleave', event => { if (event.pointerType !== 'touch' && document.activeElement !== event.currentTarget) maybeHideTimelineTooltip(event); });
+  $('route-progress').addEventListener('focus', () => updateTimeline(player.state));
+  $('route-progress').addEventListener('blur', event => maybeHideTimelineTooltip(event));
+  $('route-timeline').addEventListener('keydown', event => { if (event.key === 'Escape') hideTimelineTooltip(); });
+  $('timeline-tooltip').addEventListener('pointerleave', event => maybeHideTimelineTooltip(event));
   $('speed-range').addEventListener('input', e => {
     player.state.speed = playbackSpeeds[Number(e.target.value)];
     const label = speedLabel(player.state.speed);

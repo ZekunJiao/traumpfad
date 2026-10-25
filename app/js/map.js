@@ -1,12 +1,21 @@
-import { bearing, clamp, destination, distance, feature, pointAt, sliceRoute } from './route.js';
+import { bearing, clamp, destination, distance, feature, nearestProgress, pointAt, sliceRoute } from './route.js';
 import { describeMapError } from './map-error.js';
 import { createMapRequestGate } from './tile-request-gate.js';
 import { interpolateCamera } from './camera-transition.js';
 import { scenicPoint, scenicHeading, easeHeading } from './camera-follow.js';
 import { overnightPlaces } from './overnight-places.js';
 import { mountainRegions, borderCrossings } from './route-landmarks.js';
+import { findRouteHit } from './route-hit-test.js';
 
 const SVG = 'http://www.w3.org/2000/svg';
+const LOOK_DEGREES_PER_PIXEL = 0.15;
+const PAN_FRACTION = 0.15;
+const PAN_METERS_PER_PIXEL = 30;
+const HEIGHT_METERS_PER_PIXEL = 7;
+const WHEEL_PIXELS_PER_ZOOM_STEP = 700;
+const BUTTON_ZOOM_STEP = 0.35;
+const EXPLORE_TRACKPAD_ZOOM_RATE = 0.0075;
+const EXPLORE_WHEEL_ZOOM_RATE = 1 / 650;
 export const routePosition = (route, progress) => ({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: pointAt(route, progress) } });
 function svgNode(tag, attributes, text) {
   const node = document.createElementNS(SVG, tag);
@@ -16,12 +25,13 @@ function svgNode(tag, attributes, text) {
 }
 
 export class JourneyMap {
-  constructor({ stages, routes, onStop, onStatus, createStopPreview, onExplore = () => {}, onPitch = () => {}, onBearing = () => {}, onHeight = () => {}, onHeading = () => {} }) {
-    Object.assign(this, { stages, routes, onStop, onStatus, createStopPreview, onExplore, onPitch, onBearing, onHeight, onHeading });
+  constructor({ stages, routes, onStop, onRouteSeek = () => {}, onMapPoint = () => {}, onStatus, createStopPreview, onExplore = () => {}, onPitch = () => {}, onBearing = () => {}, onHeight = () => {}, onHeading = () => {} }) {
+    Object.assign(this, { stages, routes, onStop, onRouteSeek, onMapPoint, onStatus, createStopPreview, onExplore, onPitch, onBearing, onHeight, onHeading });
     this.viewPitch = null; this.viewBearing = 0; this.viewDistance = 1; this.heightOffset = 0;
-    this.map = null; this.ready = false; this.stageIndex = 0; this.progress = 0; this.markers = []; this.landmarkMarkers = []; this.exploring = false;
+    this.map = null; this.ready = false; this.stageIndex = 0; this.progress = 0; this.markers = []; this.landmarkMarkers = []; this.exploring = false; this.editPlacement = null;
     this.container = document.getElementById('schematic');
     this.buildSchematic();
+    this.container.addEventListener('click', event => this.handleSchematicRouteClick(event));
     this.resizeObserver = new ResizeObserver(() => this.buildSchematic());
     this.resizeObserver.observe(this.container);
   }
@@ -29,6 +39,7 @@ export class JourneyMap {
     this.container.replaceChildren(); this.schemaPreviewStage = null;
     const width = Math.max(320, this.container.clientWidth), height = Math.max(590, this.container.clientHeight);
     const svg = svgNode('svg', { viewBox: `0 0 ${width} ${height}`, role: 'img', 'aria-label': 'Schematischer Verlauf der geladenen Etappen. Keine Geländekarte.' });
+    svg.append(svgNode('rect', { x: 0, y: 0, width, height, fill: 'transparent', 'pointer-events': 'all' }));
     const relief = svgNode('g', { transform: `translate(${width * .78} ${height * .65}) rotate(-29)`, fill: 'none', stroke: '#b6c598', 'stroke-width': '.9', opacity: '.12' });
     for (let i = 0; i < 24; i++) relief.append(svgNode('ellipse', { cx: Math.sin(i * .4) * 20, cy: i * 1.8, rx: 45 + i * 19, ry: 30 + i * 10 }));
     svg.append(relief);
@@ -44,6 +55,7 @@ export class JourneyMap {
     this.schemaLine = line;
     this.routes.forEach((route, i) => {
       const path = svgNode('path', { d: line(route.points), fill: 'none', stroke: '#e9ebce', 'stroke-width': '2', opacity: '.28', 'stroke-linejoin': 'round', 'stroke-linecap': 'round' });
+      path.style.cursor = 'pointer';
       this.schemaPaths.push(path); svg.append(path);
       if (this.stages[i].isFullRoute && this.routes.length > 1) return;
       const p = this.project(route.points[0]);
@@ -60,6 +72,27 @@ export class JourneyMap {
     svg.append(this.schemaTravelled, this.schemaDot);
     this.container.append(svg); this.updateSchema();
   }
+  handleSchematicRouteClick(event) {
+    if (event.target?.closest?.('.map-photo-preview,[data-stop-id]')) return;
+    const svg = this.container.querySelector('svg'), matrix = svg?.getScreenCTM?.();
+    if (!svg || !matrix) return;
+    const project = point => {
+      const [x, y] = this.project(point);
+      return [matrix.a * x + matrix.c * y + matrix.e, matrix.b * x + matrix.d * y + matrix.f];
+    };
+    const hit = findRouteHit({ routes: this.routes, stages: this.stages, currentStageIndex: this.stageIndex, point: [event.clientX, event.clientY], project });
+    if (hit && this.editPlacement) {
+      if (hit.stageIndex === this.stageIndex) { event.preventDefault(); this.onMapPoint(pointAt(this.routes[this.stageIndex], hit.progress)); }
+      return;
+    }
+    if (hit) { event.preventDefault(); this.onRouteSeek(hit.stageIndex, hit.progress); }
+  }
+  setEditPlacement(mode = null) {
+    this.editPlacement = mode;
+    this.container.classList.toggle('is-editing', Boolean(mode));
+    const canvas = this.map?.getCanvas();
+    if (canvas) canvas.style.cursor = mode ? 'crosshair' : '';
+  }
   updateSchema() {
     this.schemaPaths.forEach((path, i) => { path.setAttribute('opacity', i === this.stageIndex ? '1' : '.2'); path.setAttribute('stroke', '#ef5350'); });
     const route = this.routes[this.stageIndex], p = this.project(pointAt(route, this.progress));
@@ -72,7 +105,10 @@ export class JourneyMap {
         const button = this.createStopPreview(stop);
         const position = this.project(pointAt(route, stop.progress));
         button.style.left = `${position[0]}px`; button.style.top = `${position[1]}px`;
-        button.addEventListener('click', () => this.onStop(stop)); this.container.append(button);
+        button.addEventListener('click', event => {
+          if (this.editPlacement) { event.preventDefault(); event.stopPropagation(); this.onMapPoint(pointAt(route, stop.progress)); }
+          else this.onStop(stop);
+        }); this.container.append(button);
       }
     }
   }
@@ -115,14 +151,15 @@ export class JourneyMap {
         try {
           map.addSource('journey-dem', { type: 'raster-dem', url: 'mapbox://mapbox.mapbox-terrain-dem-v1', tileSize: 512, maxzoom: 14 });
           map.setTerrain({ source: 'journey-dem', exaggeration: 1 });
-          map.addSource('journey-all', { type: 'geojson', data: { type: 'FeatureCollection', features: this.routes.map(r => feature(r.points)) } });
+          map.addSource('journey-all', { type: 'geojson', data: { type: 'FeatureCollection', features: this.routes.map((r, index) => feature(r.points, { stageIndex: index })) } });
           map.addLayer({ id: 'journey-all', type: 'line', slot: 'middle', source: 'journey-all', paint: { 'line-color': '#fff4d4', 'line-width': 3, 'line-opacity': .4 }, layout: { 'line-join': 'round', 'line-cap': 'round' } });
-          map.addSource('journey-active', { type: 'geojson', data: feature(this.routes[this.stageIndex].points) });
+          map.addSource('journey-active', { type: 'geojson', data: feature(this.routes[this.stageIndex].points, { stageIndex: this.stageIndex }) });
           map.addLayer({ id: 'journey-active', type: 'line', slot: 'middle', source: 'journey-active', paint: { 'line-color': '#ef5350', 'line-width': 4, 'line-opacity': 1 }, layout: { 'line-join': 'round', 'line-cap': 'round' } });
           map.addSource('journey-travelled', { type: 'geojson', data: feature(sliceRoute(this.routes[this.stageIndex], this.progress)) });
           map.addLayer({ id: 'journey-travelled', type: 'line', slot: 'middle', source: 'journey-travelled', paint: { 'line-color': '#ffd990', 'line-width': 5 }, layout: { 'line-join': 'round', 'line-cap': 'round' } });
           map.addSource('journey-position', { type: 'geojson', data: routePosition(this.routes[this.stageIndex], this.progress) });
           map.addLayer({ id: 'journey-position', type: 'circle', slot: 'middle', source: 'journey-position', paint: { 'circle-radius': 6, 'circle-color': '#ffffff', 'circle-stroke-color': '#183d35', 'circle-stroke-width': 2 } });
+          this.bindRouteInteractions(map);
           this.overnightMarkers = overnightPlaces(this.stages, this.routes).map(place => {
             const label = document.createElement('div'); label.className = 'overnight-place';
             const dot = document.createElement('span'); dot.className = 'overnight-dot'; dot.textContent = String(place.day);
@@ -202,6 +239,36 @@ export class JourneyMap {
     marker.getElement().style.zIndex = kind === 'border' ? '7' : '6';
     return { marker, place };
   }
+  bindRouteInteractions(map) {
+    const layers = ['journey-active', 'journey-all'];
+    const featureIndices = point => {
+      const found = map.queryRenderedFeatures(point, { layers });
+      return found.map(item => Number(item.properties?.stageIndex)).filter(Number.isInteger);
+    };
+    const project = point => {
+      // Route strokes are draped over terrain; project their ground position, not GPX elevation metadata.
+      const result = map.project([point[0], point[1]]);
+      return [result.x, result.y];
+    };
+    map.on('click', event => {
+      if (map !== this.map || !this.ready || event.originalEvent?.target?.closest?.('.map-photo-preview,[data-stop-id],.map-landmark,.overnight-place')) return;
+      if (this.editPlacement) {
+        event.preventDefault();
+        const route = this.routes[this.stageIndex], progress = nearestProgress(route, [event.lngLat.lng, event.lngLat.lat]);
+        this.onMapPoint(pointAt(route, progress));
+        return;
+      }
+      const { x, y } = event.point;
+      const candidates = featureIndices([[x - 15, y - 15], [x + 15, y + 15]]);
+      const hit = findRouteHit({ routes: this.routes, stages: this.stages, currentStageIndex: this.stageIndex, candidateIndices: candidates, point: event.point, project });
+      if (hit) this.onRouteSeek(hit.stageIndex, hit.progress);
+    });
+    map.on('mousemove', event => {
+      if (!this.ready || map !== this.map) return;
+      map.getCanvas().style.cursor = featureIndices(event.point).length ? 'pointer' : '';
+    });
+    map.on('mouseout', () => { if (map === this.map) map.getCanvas().style.cursor = ''; });
+  }
   updateLandmarkAltitudes() {
     if (!this.map || !this.landmarkMarkers.length) return;
     const zoom = this.map.getZoom();
@@ -218,13 +285,16 @@ export class JourneyMap {
     this.stageIndex = index; this.progress = 0; this.cameraPosition = null; this.cameraAltitude = null; this.followHeading = null; this.cameraTarget = null; this.pathHeading = null;
     this.updateSchema();
     if (!this.ready) return;
-    this.map.getSource('journey-active').setData(feature(this.routes[index].points));
+    this.map.getSource('journey-active').setData(feature(this.routes[index].points, { stageIndex: index }));
     this.markers.forEach(m => m.remove());
     this.markers = (this.stages[index].stops || []).map((stop, i) => {
       const button = this.createStopPreview ? this.createStopPreview(stop) : document.createElement('button');
       if (!this.createStopPreview) { button.className = 'route-marker'; button.textContent = String(i + 1); }
       button.dataset.stopId = stop.id; button.setAttribute('aria-label', `${stop.title}${stop.approximate ? ', ungefährer Ort' : ''}`);
-      button.addEventListener('click', () => this.onStop(stop));
+      button.addEventListener('click', event => {
+        if (this.editPlacement) { event.preventDefault(); event.stopPropagation(); this.onMapPoint(pointAt(this.routes[index], stop.progress)); }
+        else this.onStop(stop);
+      });
       return new window.mapboxgl.Marker({ element: button }).setLngLat(pointAt(this.routes[index], stop.progress)).addTo(this.map);
     });
     this.setProgress(0, false); this.flyToRoutePoint(0);
@@ -439,13 +509,13 @@ export class JourneyMap {
       this.map.setFreeCameraOptions(camera);
     }
   }
-  raiseBy(vertical) { this.setHeight((this.heightOffset || 0) - vertical * 12); }
+  raiseBy(vertical) { this.setHeight((this.heightOffset || 0) - vertical * HEIGHT_METERS_PER_PIXEL); }
   lookBy(horizontal, vertical) {
     if (!this.ready || !this.map) return;
     if (this.exploring) {
       const camera = this.map.getFreeCameraOptions();
-      const pitch = clamp(this.map.getPitch() - vertical * .25, 0, 85);
-      const heading = this.map.getBearing() + horizontal * .25;
+      const pitch = clamp(this.map.getPitch() - vertical * LOOK_DEGREES_PER_PIXEL, 0, 85);
+      const heading = this.map.getBearing() + horizontal * LOOK_DEGREES_PER_PIXEL;
       // Rotate at the observer's position, rather than orbiting Mapbox's ground centre.
       camera.setPitchBearing(pitch, heading);
       this.map.setFreeCameraOptions(camera);
@@ -453,8 +523,8 @@ export class JourneyMap {
       this.viewBearing = ((heading - (this.followHeading ?? this.routeHeading()) + 540) % 360 + 360) % 360 - 180;
       return;
     }
-    this.viewPitch = clamp((this.viewPitch ?? this.map.getPitch()) - vertical * .25, 0, 85);
-    this.setBearing((this.viewBearing || 0) + horizontal * .25);
+    this.viewPitch = clamp((this.viewPitch ?? this.map.getPitch()) - vertical * LOOK_DEGREES_PER_PIXEL, 0, 85);
+    this.setBearing((this.viewBearing || 0) + horizontal * LOOK_DEGREES_PER_PIXEL);
   }
   bindLookControls(map) {
     const surface = map.getCanvasContainer();
@@ -498,12 +568,18 @@ export class JourneyMap {
     if (![from.lng, from.lat, to.lng, to.lat].every(Number.isFinite)) return;
     if (!this.exploring) { this.setExplore(true); this.onExplore(); }
     const a = [from.lng, from.lat], b = [to.lng, to.lat], current = this.map.getCenter();
-    // Quarter sensitivity, capped at 50 ground metres per pixel even near the horizon.
-    const meters = Math.min(distance(a, b) * .25, Math.hypot(x, y) * 50);
+    // Damped panning, capped at 30 ground metres per pixel even near the horizon.
+    const meters = Math.min(distance(a, b) * PAN_FRACTION, Math.hypot(x, y) * PAN_METERS_PER_PIXEL);
     this.map.setCenter(destination([current.lng, current.lat], meters, bearing(a, b)));
   }
   zoomBy(steps, around) {
-    if (!this.ready || !this.map || !Number.isFinite(steps) || this.exploring) return;
+    if (!this.ready || !this.map || !Number.isFinite(steps)) return;
+    if (this.exploring) {
+      const options = { duration: this.reducedMotion() ? 0 : 300 };
+      if (around) options.around = around;
+      this.map.zoomTo(this.map.getZoom() + steps, options);
+      return;
+    }
     const previous = this.viewDistance ?? 1;
     this.viewDistance = clamp(previous * Math.pow(2, -steps), .3, 4);
     if (this.viewDistance === previous) return;
@@ -557,7 +633,7 @@ export class JourneyMap {
   }
   bindZoomControls(map) {
     const surface = map.getCanvasContainer();
-    const active = () => map === this.map && this.ready && !this.exploring;
+    const active = () => map === this.map && this.ready;
     const cursorPoint = event => {
       if (this.lookingWithRightButton || !Number.isFinite(event.clientX) || !Number.isFinite(event.clientY)) return;
       const rect = surface.getBoundingClientRect();
@@ -565,19 +641,19 @@ export class JourneyMap {
     };
     const consume = event => { event.preventDefault(); event.stopImmediatePropagation(); };
     surface.addEventListener('wheel', event => {
-      if (!active()) return;
+      if (!active() || this.exploring) return;
       consume(event);
       const pixels = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? surface.clientHeight : 1);
-      this.zoomBy(clamp(-pixels / 500, -1, 1), cursorPoint(event));
+      this.zoomBy(clamp(-pixels / WHEEL_PIXELS_PER_ZOOM_STEP, -1, 1), cursorPoint(event));
     }, { capture: true, passive: false });
     surface.addEventListener('dblclick', event => {
       if (!active()) return;
-      consume(event); this.zoomBy(event.shiftKey ? -.5 : .5, cursorPoint(event));
+      consume(event); this.zoomBy(event.shiftKey ? -BUTTON_ZOOM_STEP : BUTTON_ZOOM_STEP, cursorPoint(event));
     }, true);
     map.getContainer().addEventListener('click', event => {
       const button = event.target.closest?.('.mapboxgl-ctrl-zoom-in,.mapboxgl-ctrl-zoom-out');
       if (!button || !active()) return;
-      consume(event); this.zoomBy(button.classList.contains('mapboxgl-ctrl-zoom-in') ? .5 : -.5);
+      consume(event); this.zoomBy(button.classList.contains('mapboxgl-ctrl-zoom-in') ? BUTTON_ZOOM_STEP : -BUTTON_ZOOM_STEP);
     }, true);
   }
   handleUserNavigation(event) {
@@ -593,6 +669,8 @@ export class JourneyMap {
     this.appliedExplore = exploring;
     // Keep gestures available during the tour so the first gesture can take over.
     for (const key of ['scrollZoom', 'boxZoom', 'dragRotate', 'dragPan', 'doubleClickZoom', 'touchZoomRotate', 'touchPitch']) this.map[key]?.enable();
+    this.map.scrollZoom?.setZoomRate?.(EXPLORE_TRACKPAD_ZOOM_RATE);
+    this.map.scrollZoom?.setWheelZoomRate?.(EXPLORE_WHEEL_ZOOM_RATE);
     this.map.dragRotate?.enablePitch?.();
     // Presentation shortcuts use arrow keys; let Mapbox use them only in explore mode.
     this.map.keyboard?.[exploring ? 'enable' : 'disable']();
