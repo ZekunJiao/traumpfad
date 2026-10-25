@@ -15,8 +15,8 @@ function svgNode(tag, attributes, text) {
 }
 
 export class JourneyMap {
-  constructor({ stages, routes, onStop, onStatus, onExplore = () => {}, onPitch = () => {}, onBearing = () => {}, onHeight = () => {}, onHeading = () => {} }) {
-    Object.assign(this, { stages, routes, onStop, onStatus, onExplore, onPitch, onBearing, onHeight, onHeading });
+  constructor({ stages, routes, onStop, onStatus, createStopPreview, onExplore = () => {}, onPitch = () => {}, onBearing = () => {}, onHeight = () => {}, onHeading = () => {} }) {
+    Object.assign(this, { stages, routes, onStop, onStatus, createStopPreview, onExplore, onPitch, onBearing, onHeight, onHeading });
     this.viewPitch = null; this.viewBearing = 0; this.viewDistance = 1; this.heightOffset = 0;
     this.map = null; this.ready = false; this.stageIndex = 0; this.progress = 0; this.markers = []; this.exploring = false;
     this.container = document.getElementById('schematic');
@@ -25,7 +25,7 @@ export class JourneyMap {
     this.resizeObserver.observe(this.container);
   }
   buildSchematic() {
-    this.container.replaceChildren();
+    this.container.replaceChildren(); this.schemaPreviewStage = null;
     const width = Math.max(320, this.container.clientWidth), height = Math.max(590, this.container.clientHeight);
     const svg = svgNode('svg', { viewBox: `0 0 ${width} ${height}`, role: 'img', 'aria-label': 'Schematischer Verlauf der geladenen Etappen. Keine Geländekarte.' });
     const relief = svgNode('g', { transform: `translate(${width * .78} ${height * .65}) rotate(-29)`, fill: 'none', stroke: '#b6c598', 'stroke-width': '.9', opacity: '.12' });
@@ -64,8 +64,19 @@ export class JourneyMap {
     const route = this.routes[this.stageIndex], p = this.project(pointAt(route, this.progress));
     this.schemaTravelled.setAttribute('d', this.schemaLine(sliceRoute(route, this.progress)));
     this.schemaDot.setAttribute('cx', p[0]); this.schemaDot.setAttribute('cy', p[1]);
+    if (this.createStopPreview && this.schemaPreviewStage !== this.stageIndex) {
+      this.container.querySelectorAll('.map-photo-preview').forEach(node => node.remove());
+      this.schemaPreviewStage = this.stageIndex;
+      for (const stop of this.stages[this.stageIndex].stops || []) {
+        const button = this.createStopPreview(stop);
+        const position = this.project(pointAt(route, stop.progress));
+        button.style.left = `${position[0]}px`; button.style.top = `${position[1]}px`;
+        button.addEventListener('click', () => this.onStop(stop)); this.container.append(button);
+      }
+    }
   }
   setToken(token) {
+    this.photoCamera = null;
     this.cancelCameraMotion();
     clearTimeout(this.loadTimer);
     this.markers.forEach(m => m.remove()); this.markers = [];
@@ -152,6 +163,7 @@ export class JourneyMap {
     this.container.hidden = false; this.onStatus('error', message);
   }
   setStage(index) {
+    this.photoCamera = null;
     this.pendingStopProgress = null;
     this.cancelCameraMotion();
     this.stageIndex = index; this.progress = 0; this.cameraPosition = null; this.cameraAltitude = null; this.followHeading = null; this.cameraTarget = null; this.pathHeading = null;
@@ -160,7 +172,9 @@ export class JourneyMap {
     this.map.getSource('journey-active').setData(feature(this.routes[index].points));
     this.markers.forEach(m => m.remove());
     this.markers = (this.stages[index].stops || []).map((stop, i) => {
-      const button = document.createElement('button'); button.className = 'route-marker'; button.textContent = String(i + 1); button.setAttribute('aria-label', `${stop.title}${stop.approximate ? ', ungefährer Ort' : ''}`);
+      const button = this.createStopPreview ? this.createStopPreview(stop) : document.createElement('button');
+      if (!this.createStopPreview) { button.className = 'route-marker'; button.textContent = String(i + 1); }
+      button.dataset.stopId = stop.id; button.setAttribute('aria-label', `${stop.title}${stop.approximate ? ', ungefährer Ort' : ''}`);
       button.addEventListener('click', () => this.onStop(stop));
       return new window.mapboxgl.Marker({ element: button }).setLngLat(pointAt(this.routes[index], stop.progress)).addTo(this.map);
     });
@@ -172,6 +186,34 @@ export class JourneyMap {
     this.pendingStopProgress = null;
     if (this.exploring) { this.setProgress(progress, false); this.flyToRoutePoint(progress); }
     else this.setProgress(progress);
+  }
+  stopPreviewRect(id) {
+    const root = this.ready ? document.getElementById('map') : this.container;
+    return [...root.querySelectorAll('.map-photo-preview')].find(node => node.dataset.stopId === id)?.getBoundingClientRect();
+  }
+  beginPhotoFocus(stop) {
+    if (!this.ready || this.photoCamera?.id === stop.id) return;
+    const pose = this.map.getFreeCameraOptions();
+    this.photoCamera = { id: stop.id, stageIndex: this.stageIndex, pose };
+    const center = pointAt(this.routes[this.stageIndex], stop.progress);
+    const saved = this.photoCamera, heading = this.map.getBearing();
+    // Load detailed terrain first, then descend using absolute terrain elevation.
+    this.animateNavigation(() => this.map.flyTo({ center, zoom: Math.min(19, this.map.getMaxZoom?.() ?? 19), pitch: 25, bearing: heading, duration: this.reducedMotion() ? 0 : 3000 }), () => {
+      if (this.photoCamera !== saved || this.exploring) return;
+      const ground = this.map.queryTerrainElevation(center, { exaggerated: false });
+      if (!Number.isFinite(ground)) return; // Keep the safe Mapbox approach if heights are unavailable.
+      const close = this.map.getFreeCameraOptions();
+      close.position = window.mapboxgl.MercatorCoordinate.fromLngLat(center, ground + 10);
+      close.setPitchBearing(25, heading);
+      this.beginEntry(close, { lockView: true });
+      if (this.entry) { this.entry.duration = 1800; this.entry.groundClearance = 10; }
+    });
+  }
+  endPhotoFocus() {
+    const saved = this.photoCamera; this.photoCamera = null;
+    if (!saved || !this.ready || this.exploring || saved.stageIndex !== this.stageIndex) return;
+    this.cancelCameraMotion(); this.beginEntry(saved.pose, { lockView: true });
+    if (this.entry) this.entry.duration = 900;
   }
   cancelCameraMotion(stopMap = true) {
     this.motionVersion = (this.motionVersion || 0) + 1;
@@ -186,13 +228,14 @@ export class JourneyMap {
     this.followRequested = false;
     if (this.entry || this.nativeMotion || this.preparingFollow || Number.isFinite(this.pendingStopProgress)) this.cancelCameraMotion();
   }
-  animateNavigation(action) {
+  animateNavigation(action, onComplete) {
     this.cancelCameraMotion();
     const currentMap = this.map, version = this.motionVersion;
     const complete = () => {
-      if (this.map !== currentMap || version !== this.motionVersion) return;
+      if (this.map !== currentMap || version !== this.motionVersion || this.nativeMotion !== complete) return;
       currentMap.off('moveend', complete);
-      this.nativeMotion = null;
+      this.nativeMotion = null; this.nativeMotionStarted = null;
+      onComplete?.();
       if (this.followRequested) this.setProgress(this.progress);
     };
     this.nativeMotion = complete;
@@ -205,18 +248,21 @@ export class JourneyMap {
     const route = this.routes[this.stageIndex], offset = this.viewOffset ?? [0, 0];
     const center = pointAt(route, progress).map((v, i) => v + offset[i]);
     const heading = bearing(pointAt(route, clamp(progress - 300 / route.length)), pointAt(route, clamp(progress + 450 / route.length)));
-    this.animateNavigation(() => this.map.flyTo({ center, zoom: 12.4, pitch: 50, bearing: heading, padding: { top: 0, bottom: 0, left: 0, right: 0 }, duration: this.reducedMotion() ? 0 : 2600, curve: 1.4 }));
-    this.routeFramed = true;
+    this.animateNavigation(() => {
+      // A zero-duration flight can fire moveend before flyTo returns.
+      this.routeFramed = true;
+      this.map.flyTo({ center, zoom: 12.4, pitch: 50, bearing: heading, padding: { top: 0, bottom: 0, left: 0, right: 0 }, duration: this.reducedMotion() ? 0 : 2600, curve: 1.4 });
+    });
   }
-  beginEntry(target) {
+  beginEntry(target, { lockView = false } = {}) {
     const start = this.map.getFreeCameraOptions();
     if (this.reducedMotion() || !start.position || !start.orientation || !target.orientation) {
-      this.applyFollowView(target);
+      if (!lockView) this.applyFollowView(target);
       this.map.setFreeCameraOptions(target); this.following = true; return;
     }
     this.map.stop();
     const snapshot = pose => ({ position: { x: pose.position.x, y: pose.position.y, z: pose.position.z }, orientation: [...pose.orientation] });
-    this.entry = { from: snapshot(start), to: snapshot(target), startedAt: performance.now(), duration: 2200 };
+    this.entry = { from: snapshot(start), to: snapshot(target), startedAt: performance.now(), duration: 2200, lockView };
   }
   advanceCamera(now) {
     // A gesture or SDK interruption may finish a flight without its expected moveend.
@@ -231,8 +277,15 @@ export class JourneyMap {
       const pose = interpolateCamera(entry.from, entry.to, t);
       const camera = this.map.getFreeCameraOptions();
       camera.position = new window.mapboxgl.MercatorCoordinate(pose.position.x, pose.position.y, pose.position.z);
+      if (entry.groundClearance) {
+        const location = camera.position.toLngLat();
+        const ground = this.map.queryTerrainElevation(location, { exaggerated: false });
+        if (!Number.isFinite(ground)) { this.entry = null; return false; }
+        const floor = window.mapboxgl.MercatorCoordinate.fromLngLat(location, ground + entry.groundClearance);
+        camera.position.z = Math.max(camera.position.z, floor.z);
+      }
       camera.orientation = pose.orientation;
-      this.applyFollowView(camera);
+      if (!entry.lockView) this.applyFollowView(camera);
       this.map.setFreeCameraOptions(camera);
       if (t >= 1) { this.entry = null; this.following = true; }
     }
@@ -246,6 +299,7 @@ export class JourneyMap {
     this.animateNavigation(() => this.map.fitBounds(bounds, { padding, pitch: 50, duration: this.reducedMotion() ? 0 : 2600, maxZoom: 13 }));
   }
   overview() {
+    this.photoCamera = null;
     if (!this.ready) return;
     const points = this.routes.flatMap(r => r.points);
     const bounds = points.reduce((b, p) => b.extend(p), new window.mapboxgl.LngLatBounds(points[0], points[0]));
@@ -284,6 +338,17 @@ export class JourneyMap {
       this.cancelCameraMotion();
       this.map.setBearing(this.routeHeading() + this.viewBearing);
     } else this.refreshView();
+  }
+  recenter(progress = this.progress) {
+    if (!this.ready || !this.map) return;
+    this.setExplore(false);
+    this.cancelCameraMotion();
+    this.viewOffset = [0, 0]; this.viewDistance = 1;
+    this.viewPitch = null; this.viewBearing = 0; this.heightOffset = 0;
+    this.cameraPosition = null; this.cameraAltitude = null; this.cameraTarget = null;
+    this.followHeading = null; this.pathHeading = null; this.terrainFloor = null;
+    this.onBearing(0); this.onHeight(0);
+    this.setProgress(progress, true);
   }
   resetView() {
     if (!this.ready || !this.map) return;
@@ -345,7 +410,7 @@ export class JourneyMap {
   bindLookControls(map) {
     const surface = map.getCanvasContainer();
     let pointer;
-    const canLook = event => map === this.map && this.ready && [0, 2].includes(event.button);
+    const canLook = event => map === this.map && this.ready && [0, 2].includes(event.button) && !event.target?.closest?.('button,a,input,select');
     surface.addEventListener('pointerdown', event => {
       if (!canLook(event)) return;
       pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, pan: event.button === 0 && !event.ctrlKey && !event.shiftKey, height: event.shiftKey, started: false };
@@ -392,21 +457,54 @@ export class JourneyMap {
     if (!this.ready || !this.map || !Number.isFinite(steps) || this.exploring) return;
     const previous = this.viewDistance ?? 1;
     this.viewDistance = clamp(previous * Math.pow(2, -steps), .3, 4);
-    if (around && [around.lng, around.lat].every(Number.isFinite) && this.viewDistance !== previous) {
-      const map = this.map, before = map.getCenter(), requested = this.followRequested;
-      // Let Mapbox preserve the screen position of the picked terrain point.
+    if (this.viewDistance === previous) return;
+    if (this.entry || this.nativeMotion || this.preparingFollow || !this.following) {
+      // Do not adopt an intermediate flight pose as a completed route camera.
       this.cancelCameraMotion();
-      map.zoomTo(map.getZoom() + Math.log2(previous / this.viewDistance), { around, duration: 0 });
-      const after = map.getCenter(), camera = map.getFreeCameraOptions(), position = camera.position;
-      const offset = this.viewOffset ?? [0, 0];
-      this.viewOffset = [offset[0] + after.lng - before.lng, offset[1] + after.lat - before.lat];
-      const location = position.toLngLat();
-      this.cameraPosition = [location.lng, location.lat]; this.cameraAltitude = position.toAltitude();
-      this.cameraTarget = [after.lng, after.lat];
-      this.following = true; this.routeFramed = true; this.followRequested = requested;
+      this.cameraPosition = null; this.cameraAltitude = null; this.cameraTarget = null;
+      this.followHeading = null; this.pathHeading = null;
+      this.setProgress(this.progress, true, .1);
       return;
     }
-    if (!this.entry && !this.nativeMotion) this.setProgress(this.progress, true, .1);
+    const anchorHeight = around && this.map.queryTerrainElevation(around, { exaggerated: false });
+    if (!around || ![around.lng, around.lat, anchorHeight].every(Number.isFinite) || !this.cameraTarget) {
+      this.setProgress(this.progress, true, .1);
+      return;
+    }
+    // Scale the camera and its existing route target together around the cursor.
+    // Keeping one camera owner and the same orientation avoids an SDK zoom followed
+    // by a competing lookAtPoint towards Mapbox's different ground centre.
+    const Coordinate = window.mapboxgl.MercatorCoordinate;
+    const camera = this.map.getFreeCameraOptions(), position = camera.position;
+    if (!position) return;
+    const anchor = Coordinate.fromLngLat(around, anchorHeight);
+    const focus = Coordinate.fromLngLat(this.cameraTarget, anchorHeight);
+    const scale = this.viewDistance / previous;
+    const scaled = point => new Coordinate(anchor.x + (point.x - anchor.x) * scale, anchor.y + (point.y - anchor.y) * scale, anchor.z + (point.z - anchor.z) * scale);
+    const nextPosition = scaled(position), location = nextPosition.toLngLat();
+    const target = scaled(focus).toLngLat();
+    const nextTarget = [target.lng, target.lat], nextLocation = [location.lng, location.lat];
+    const elevations = Array.from({ length: 13 }, (_, i) => {
+      const t = i / 12;
+      return this.map.queryTerrainElevation(nextLocation.map((v, axis) => v * (1 - t) + nextTarget[axis] * t), { exaggerated: false });
+    });
+    if (!elevations.every(Number.isFinite)) {
+      this.setProgress(this.progress, true, .1);
+      return;
+    }
+    this.terrainFloor = Math.max(...elevations);
+    this.cameraAltitude = Math.max(this.terrainFloor + 500, nextPosition.toAltitude());
+    const offset = this.viewOffset ?? [0, 0];
+    this.viewOffset = offset.map((value, axis) => value + nextTarget[axis] - this.cameraTarget[axis]);
+    this.cameraPosition = nextLocation; this.cameraTarget = nextTarget;
+    this.followHeading = bearing(nextLocation, nextTarget);
+    camera.position = Coordinate.fromLngLat(nextLocation, this.cameraAltitude);
+    if (this.cameraAltitude > nextPosition.toAltitude() + .01) {
+      // Terrain clearance can lift the camera; keep its route target in view.
+      camera.lookAtPoint({ lng: target.lng, lat: target.lat });
+      this.applyFollowView(camera);
+    }
+    this.map.setFreeCameraOptions(camera);
   }
   bindZoomControls(map) {
     const surface = map.getCanvasContainer();

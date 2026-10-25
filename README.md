@@ -79,7 +79,7 @@ Ein zweiter geprüfter Download vom [GPS Wanderatlas](https://www.ich-geh-wander
 | Flug starten / pausieren | Play-Schaltfläche oder Leertaste |
 | Nächster / vorheriger Fotostopp | Pfeil rechts / links |
 | Fotostopp fortsetzen | ▶, „Weiter auf dem Weg“ oder Leertaste |
-| Bilder innerhalb eines Fotostopps | Bildpfeile oder Pfeil rechts / links; jeweils bis zu drei Bilder |
+| Bilder innerhalb eines Fotostopps | Bildpfeile oder Pfeil rechts / links; jeweils ein großes Bild |
 | Fotostopp ausblenden und pausiert bleiben | „Fotos ausblenden“ oder `Escape` |
 | Tagesgalerie | „Tagesgalerie öffnen“ oder `G` |
 | Dialog schließen | Kreuz oder `Escape` |
@@ -92,7 +92,7 @@ Ein zweiter geprüfter Download vom [GPS Wanderatlas](https://www.ich-geh-wander
 | Während des Flugs umsehen | Rechte Maustaste halten und ziehen: links/rechts dreht den Blick, hoch/runter neigt ihn. Der Flug folgt weiter der Route. |
 
 Die Maussteuerung gilt für die verbundene Mapbox-Karte. Verschieben mit der linken Maustaste pausiert den Flug und wechselt ins Erkunden. Die Bewegung ist auf ein Viertel gedämpft und bei großer Höhe auf 50 Meter pro Pixel begrenzt. Zoom mit Mausrad, Trackpad, Doppelklick oder +/− verändert den Kameraabstand, ohne den Flug zu unterbrechen. Die rechte Maustaste (am Mac auch Ctrl + linke Maustaste) steuert die Blickrichtung: Während der Präsentation folgt die Kameraposition weiter der Route, die Wiedergabe läuft weiter. Die Blickrichtung bleibt relativ zur Route erhalten, auch in Kurven. „Präsentieren“ führt die Kamera zum gespeicherten Stand zurück; ▶ setzt den Flug fort. Automatische Kamerafahrten lösen diesen Wechsel nicht aus.
-An Fotostopps und am Ende einer Etappe pausiert der Flug. Nach dem Kameraanflug erscheinen die Bilder als Collage direkt über der weiterhin bedienbaren Karte: 650 ms Einblendung, 150 ms Versatz und 400 ms Ausblendung. Auf schmalen oder niedrigen Bildschirmen erscheint jeweils ein Bild; die Einstellung für reduzierte Bewegung wird berücksichtigt. Die Tagesgalerie verwendet weiterhin ihre eigene Bildansicht. Nach dem letzten Tag startet Play die Reise erneut. Beim Wechsel in einen anderen Browser-Tab wird der Flug pausiert. Im Vollbild bleiben die Quellenangaben sichtbar. Auf schmalen Bildschirmen steht die Etappenliste unter der Karte.
+An Fotostopps und am Ende einer Etappe pausiert der Flug. Kleine Fotovorschauen schweben an den Fotostopps über der Karte. Nach dem Anflug wächst ein geladenes und dekodiertes Bild aus seiner Vorschau zur großen Ansicht (4800 ms), während die Kamera zunächst auf Detailzoom 19 und anschließend bis ungefähr 10 Meter über das geladene Gelände zufliegt. Fehlen Höhendaten, bleibt sie beim sicheren Mapbox-Anflug. Mit „Weiter auf dem Weg“, ▶ oder Leertaste schrumpft es zur Vorschau zurück (650 ms), die Kamera kehrt zur vorherigen Perspektive zurück und der Flug geht weiter. Weitere Bilder werden einzeln durchgeblättert. Die Einstellung für reduzierte Bewegung wird berücksichtigt. Die Tagesgalerie verwendet weiterhin ihre eigene Bildansicht. Nach dem letzten Tag startet Play die Reise erneut. Beim Wechsel in einen anderen Browser-Tab wird der Flug pausiert. Im Vollbild bleiben die Quellenangaben sichtbar. Auf schmalen Bildschirmen steht die Etappenliste unter der Karte.
 
 ## Eigene Fotos importieren
 
@@ -173,3 +173,5 @@ Der Kameraflug nutzt eine geglättete Position hinter der Route und Höhenabfrag
 `app/` enthält ausschließlich die im Browser benötigte App, Reisedaten und abgeleitete Webbilder. `scripts/` enthält lokalen Server und Importwerkzeuge. `Material/` enthält Originale und Importbericht. Originale, Webfotos, `.env` und Importbericht sind in Git ausgeschlossen. Der Server bindet nur an die lokale Loopback-Adresse und liefert ausschließlich App-Dateien und die beiden Mapbox-Paketdateien aus; die Originale und `.git` sind nicht über HTTP erreichbar.
 
 Grundlagen: [Mapbox-Kameraflug](https://docs.mapbox.com/mapbox-gl-js/example/free-camera-path/), [Standard Satellite](https://docs.mapbox.com/map-styles/reference/standard-satellite/), [ExifTool für Node](https://github.com/photostructure/exiftool-vendored.js/).
+
+Mit **Zentrieren** neben der Fluggeschwindigkeit kehrt die Kamera zur aktuellen Routenposition und zur normalen Flugansicht zurück. Verschiebung, Blickrichtung, Zoom und Höhenänderung werden zurückgesetzt. Die aktuelle Stelle bleibt erhalten; pausierte Wiedergabe bleibt pausiert.

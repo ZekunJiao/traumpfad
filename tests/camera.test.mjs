@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { JourneyMap } from '../app/js/map.js';
-import { prepareRoute } from '../app/js/route.js';
+import { prepareRoute, pointAt } from '../app/js/route.js';
 import { TourPlayer } from '../app/js/player.js';
 
 function cameraFixture(elevations) {
@@ -35,11 +35,16 @@ function transitionFixture() {
   const { view } = cameraFixture(Array(13).fill(1000));
   class Coordinate {
     constructor(x, y, z) { Object.assign(this, { x, y, z }); }
-    static fromLngLat(position, height) { return new Coordinate(position[0] / 360, (90 - position[1]) / 180, height / 40000000); }
+    static fromLngLat(position, height) {
+      const [lng, lat] = Array.isArray(position) ? position : [position.lng, position.lat];
+      return new Coordinate(lng / 360, (90 - lat) / 180, height / 40000000);
+    }
+    toLngLat() { return { lng: this.x * 360, lat: 90 - this.y * 180 }; }
+    toAltitude() { return this.z * 40000000; }
   }
   window.mapboxgl.MercatorCoordinate = Coordinate;
   let pose = { position: new Coordinate(.02, .2, .001), orientation: [0, 0, 0, 1] }, updates = 0, angles;
-  view.map.getFreeCameraOptions = () => ({ position: { ...pose.position }, orientation: [...pose.orientation], lookAtPoint() { this.orientation = [.3, 0, 0, Math.sqrt(.91)]; }, setPitchBearing(pitch, bearing) { angles = { pitch, bearing }; this.orientation = [Math.sin(pitch * Math.PI / 360), 0, 0, Math.cos(pitch * Math.PI / 360)]; } });
+  view.map.getFreeCameraOptions = () => ({ position: new Coordinate(pose.position.x, pose.position.y, pose.position.z), orientation: [...pose.orientation], lookAtPoint() { this.orientation = [.3, 0, 0, Math.sqrt(.91)]; }, setPitchBearing(pitch, bearing) { angles = { pitch, bearing }; this.orientation = [Math.sin(pitch * Math.PI / 360), 0, 0, Math.cos(pitch * Math.PI / 360)]; } });
   view.map.setFreeCameraOptions = camera => { pose = { position: { ...camera.position }, orientation: [...camera.orientation] }; updates++; };
   view.map.getPitch = () => angles?.pitch ?? 55;
   return { view, stats: () => ({ pose, updates, angles }) };
@@ -289,7 +294,7 @@ test('wheel and zoom buttons change follow distance without invoking native map 
   const wheel = { deltaY: -250, deltaMode: 0, preventDefault() { this.prevented = true; }, stopImmediatePropagation() { this.stopped = true; } };
   surfaceListeners.get('wheel')(wheel);
   assert.equal(wheel.prevented, true); assert.equal(wheel.stopped, true);
-  assert.equal(view.entry, approach); assert.ok(view.viewDistance < 1);
+  assert.notEqual(view.entry, approach); assert.ok(view.entry); assert.ok(view.viewDistance < 1);
   const zoomed = view.viewDistance;
   containerListeners.get('click')({ target: { closest: () => ({ classList: { contains: () => false } }) }, preventDefault() {}, stopImmediatePropagation() {} });
   assert.ok(view.viewDistance > zoomed);
@@ -453,31 +458,161 @@ test('looking around while paused in explore rotates at the observer without mov
   assert.equal(player.state.progress, progress);
 });
 
-test('wheel zoom uses the cursor terrain point and preserves ongoing playback', () => {
-  const { view, player } = manualNavigationFixture();
+test('cursor zoom scales the route target with the camera without turning its orientation', () => {
+  const { view, player, stats } = manualNavigationFixture();
   player.play(); view.advanceCamera(view.entry.startedAt + view.entry.duration);
-  let center = { lng: 11, lat: 47 }, request;
-  view.map.getCenter = () => center;
-  view.map.getZoom = () => 12;
-  view.map.zoomTo = (zoom, options) => { request = { zoom, options }; center = { lng: 11.01, lat: 47.005 }; };
-  const cameraOptions = view.map.getFreeCameraOptions;
-  view.map.getFreeCameraOptions = () => {
-    const camera = cameraOptions();
-    camera.position.toLngLat = () => ({ lng: 11.008, lat: 47.004 });
-    camera.position.toAltitude = () => 2200;
-    return camera;
-  };
-  const target = { lng: 11.02, lat: 47.01 };
-  view.zoomBy(.5, target);
-  assert.equal(request.zoom, 12.5);
-  assert.deepEqual(request.options.around, target);
-  assert.equal(request.options.duration, 0);
-  assert.ok(Math.abs(view.viewOffset[0] - .01) < 1e-10);
-  assert.deepEqual(view.cameraPosition, [11.008,47.004]);
-  assert.equal(view.cameraAltitude, 2200);
-  assert.equal(view.nativeMotion, null);
+  view.map.zoomTo = () => assert.fail('the SDK must not take over the route camera');
+  const orientation = [...stats().pose.orientation];
+  const anchor = { lng: 11.02, lat: 47.01 };
+  for (const step of [.5, .5, -.5, -.5, 1, -1]) {
+    const beforeTarget = [...view.cameraTarget], beforePosition = [...view.cameraPosition];
+    const previousDistance = view.viewDistance ?? 1;
+    view.zoomBy(step, anchor);
+    const ratio = view.viewDistance / previousDistance;
+    assert.deepEqual(stats().pose.orientation, orientation);
+    for (let axis = 0; axis < 2; axis++) {
+      assert.ok(Math.abs((view.cameraTarget[axis] - view.cameraPosition[axis]) - (beforeTarget[axis] - beforePosition[axis]) * ratio) < 1e-10);
+    }
+    assert.ok(!view.nativeMotion);
+  }
   player.tick(.5);
   assert.equal(player.state.status, 'playing');
   assert.equal(player.state.mode, 'presentation');
   assert.equal(player.state.progress, .05);
+});
+
+test('zoom during an approach starts a new approach rather than treating an intermediate pose as following', () => {
+  const { view, player } = manualNavigationFixture();
+  player.play();
+  const first = view.entry;
+  view.advanceCamera(first.startedAt + 500);
+  view.zoomBy(.5, { lng: 11.02, lat: 47.01 });
+  assert.ok(view.entry);
+  assert.notEqual(view.entry, first);
+  assert.equal(view.following, false);
+  assert.equal(view.progress, 0);
+  view.advanceCamera(view.entry.startedAt + view.entry.duration);
+  assert.equal(view.following, true);
+  player.tick(.5);
+  assert.equal(player.state.progress, .05);
+});
+
+test('a distant seek discards the old target and loads the destination before entering follow mode', () => {
+  const { view } = transitionFixture();
+  view.setProgress(.1); view.advanceCamera(view.entry.startedAt + view.entry.duration);
+  let complete, destination;
+  view.map.getBounds = () => ({ contains: () => false });
+  view.map.on = (_, callback) => { complete = callback; };
+  view.map.off = () => {};
+  view.map.flyTo = options => { destination = options.center; };
+  view.focusStop(.9);
+  assert.deepEqual(destination, pointAt(view.routes[0], .9));
+  assert.equal(view.following, false);
+  assert.equal(view.progress, .9);
+  complete();
+  assert.ok(view.entry);
+  view.advanceCamera(view.entry.startedAt + view.entry.duration);
+  assert.equal(view.following, true);
+  assert.equal(view.preparingFollow, false);
+});
+
+test('a synchronous flight completion frames the destination before follow resumes and completes only once', () => {
+  const { view } = transitionFixture();
+  let complete, flights = 0;
+  view.map.getBounds = () => ({ contains: () => false });
+  view.map.on = (_, callback) => { complete = callback; };
+  view.map.off = () => {};
+  view.map.flyTo = () => { flights++; complete(); };
+  view.followRequested = true;
+  view.setProgress(.5);
+  assert.equal(flights, 1);
+  view.setProgress(.5);
+  assert.ok(view.entry);
+  const entry = view.entry;
+  complete();
+  assert.equal(view.entry, entry);
+  assert.equal(flights, 1);
+});
+
+test('recenter clears manual camera offsets and returns from far away to the same route progress', () => {
+  const { view } = transitionFixture();
+  Object.assign(view, { exploring: true, appliedExplore: true, progress: .6, viewOffset: [4, -2], viewDistance: 8, viewBearing: 130, viewPitch: 12, heightOffset: 4000, cameraTarget: [15, 40], cameraPosition: [15, 40], cameraAltitude: 9000 });
+  let navigation, complete, bearing, height;
+  view.onBearing = value => { bearing = value; };
+  view.onHeight = value => { height = value; };
+  view.map.on = (_, callback) => { complete = callback; };
+  view.map.off = () => {};
+  view.map.getBounds = () => ({ contains: () => false });
+  view.map.flyTo = options => { navigation = options; };
+  view.recenter();
+  assert.equal(view.progress, .6);
+  assert.equal(view.stageIndex, 0);
+  assert.equal(view.exploring, false);
+  assert.deepEqual(view.viewOffset, [0, 0]);
+  assert.equal(view.viewDistance, 1);
+  assert.equal(view.viewPitch, null);
+  assert.equal(bearing, 0); assert.equal(height, 0);
+  assert.equal(navigation.zoom, 12.4);
+  assert.deepEqual(navigation.center, pointAt(view.routes[0], .6));
+  assert.equal(view.followRequested, true);
+  complete();
+  assert.ok(view.entry);
+  assert.equal(view.progress, .6);
+});
+test('photo focus saves the visible camera and returns through a controlled flight', () => {
+  const { view, player, stats } = manualNavigationFixture();
+  player.play(); view.advanceCamera(view.entry.startedAt + view.entry.duration);
+  player.pause();
+  const before = structuredClone(stats().pose);
+  let request;
+  view.map.on = () => {};
+  view.map.off = () => {};
+  view.map.getZoom = () => 12;
+  view.map.getBearing = () => 20;
+  view.map.flyTo = options => { request = options; };
+  view.beginPhotoFocus({ id:'photo', progress:.3 });
+  assert.equal(request.zoom,19);
+  assert.equal(request.duration,3000);
+  assert.equal(view.photoCamera.id,'photo');
+  const saved = view.photoCamera;
+  view.beginPhotoFocus({ id:'photo', progress:.3 });
+  assert.equal(view.photoCamera,saved);
+  view.endPhotoFocus();
+  assert.equal(view.photoCamera,null);
+  assert.equal(view.entry.duration,900);
+  assert.deepEqual(view.entry.to,before);
+  view.advanceCamera(view.entry.startedAt + 900);
+  assert.deepEqual(stats().pose,before);
+  assert.equal(player.state.status,'paused');
+});
+
+test('photo descent targets ten metres above terrain and checks clearance during descent', () => {
+  const { view, player, stats } = manualNavigationFixture();
+  const Coordinate = window.mapboxgl.MercatorCoordinate, from = Coordinate.fromLngLat;
+  Coordinate.fromLngLat = (point, height) => from(Array.isArray(point) ? point : [point.lng,point.lat],height);
+  Coordinate.prototype.toLngLat = function () { return { lng:this.x*360, lat:90-this.y*180 }; };
+  view.map.on = () => {}; view.map.off = () => {};
+  view.map.getBearing = () => 20; view.map.flyTo = () => {};
+  player.play(); view.advanceCamera(view.entry.startedAt + view.entry.duration); player.pause();
+  view.beginPhotoFocus({id:'near',progress:.3});
+  view.nativeMotion();
+  assert.equal(view.entry.duration,1800);
+  assert.equal(view.entry.lockView,true);
+  assert.ok(Math.abs(view.entry.to.position.z - 1010/40000000) < 1e-12);
+  view.map.queryTerrainElevation = () => 1020;
+  const entry=view.entry;
+  view.advanceCamera(entry.startedAt+1800);
+  assert.equal(view.entry,null);
+  assert.ok(stats().pose.position.z >= 1030/40000000);
+  assert.equal(player.state.status,'paused');
+});
+test('missing terrain leaves the Mapbox photo approach intact rather than inventing ground height', () => {
+  const { view } = transitionFixture();
+  view.map.on = () => {}; view.map.off = () => {};
+  view.map.getBearing = () => 20; view.map.flyTo = () => {};
+  view.map.queryTerrainElevation = () => null;
+  view.beginPhotoFocus({id:'missing',progress:.3});
+  view.nativeMotion();
+  assert.equal(view.entry,null);
+  assert.equal(view.nativeMotion,null);
 });

@@ -5,6 +5,9 @@ import { JourneyMap } from './map.js';
 import { checkMapboxConnection } from './token-check.js';
 import { readBrowserMapCache, describeBrowserMapCache } from './browser-cache.js';
 import { PhotoCollage, decodePhotoNode } from './photo-collage.js';
+import { PhotoTransition } from './photo-transition.js';
+const photoMotion = new PhotoTransition();
+let photoExitPending = false;
 
 const $ = id => document.getElementById(id);
 const text = (id, value) => { $(id).textContent = value ?? ''; };
@@ -45,15 +48,15 @@ async function loadCollagePhoto(photo, options) {
     return node;
   }
 }
-function collagePageSize() { return $('main').clientWidth < 1000 || $('main').clientHeight < 760 ? 1 : 3; }
+function collagePageSize() { return 1; }
 function layoutCollage() {
   const root = $('photo-collage'), main = $('main'), height = main.clientHeight;
-  root.dataset.compact = String(collagePageSize() === 1);
+  root.dataset.compact = String(main.clientWidth < 1000 || height < 760);
   main.style.setProperty('--map-height', `${height}px`);
   const controlsBottom = height - $('player-controls-anchor').offsetTop + 12;
   root.style.setProperty('--collage-controls-bottom', `${controlsBottom}px`);
   const controlsTop = height - controlsBottom - ($('collage-controls').offsetHeight || 76);
-  const photoTop = $('stage-card').offsetTop + $('stage-card').offsetHeight + 18;
+  const photoTop = 76;
   root.style.setProperty('--collage-photo-top', `${photoTop}px`);
   root.style.setProperty('--collage-small-height', `${Math.max(32, controlsTop - photoTop - 72)}px`);
   root.style.setProperty('--collage-left-height', `${Math.max(80, Math.min(height * .23, controlsTop - photoTop - 72))}px`);
@@ -63,7 +66,9 @@ function renderCollage(state) {
   const root = $('photo-collage'), images = $('collage-images'), revision = ++collageRevision;
   const duration = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 400;
   clearTimeout(collageHideTimer);
+  photoMotion.cancel(); photoExitPending = false;
   if (state.phase === 'hidden' || state.phase === 'waiting') {
+    if (state.phase === 'hidden') map?.endPhotoFocus();
     if (root.contains(document.activeElement)) $('play-button').focus({ preventScroll: true });
     for (const card of images.children) { card.classList.remove('is-shown'); card.setAttribute('aria-hidden', 'true'); }
     root.classList.remove('is-visible'); root.inert = true; root.setAttribute('aria-hidden', 'true');
@@ -99,9 +104,41 @@ function renderCollage(state) {
     // Establish the start styles once; CSS handles stagger and interrupted fades.
     void images.offsetWidth;
     root.classList.add('is-visible'); cards.forEach(card => card.classList.add('is-shown'));
+    map.beginPhotoFocus(state.stop);
+    const from = photoPreviewRect(state.stop.id);
+    cards.forEach(card => photoMotion.move(card, from, card.getBoundingClientRect(), { reduced: matchMedia('(prefers-reduced-motion: reduce)').matches }));
     setTimeout(() => oldCards.forEach(card => card.remove()), duration);
     announce(`Fotostopp: ${state.stop.title}. ${$('collage-count').textContent}. Mit Leertaste den Flug fortsetzen.`);
   } else { root.classList.add('is-visible'); layoutCollage(); }
+}
+function stopPreview(stop) {
+  const button = element('button', 'map-photo-preview'); button.type = 'button'; button.dataset.stopId = stop.id;
+  button.setAttribute('aria-label', `${stop.title} · Foto öffnen`);
+  const photo = journey.photos.find(photo => photo.id === stop.photoIds[0]);
+  const visual = element('span', 'map-photo-thumb');
+  if (photo?.file && !photo.placeholder) { const image = photoNode(photo, true); image.draggable = false; visual.append(image); }
+  else visual.append(element('span', 'map-photo-placeholder', '↟'));
+  button.append(visual, element('span', 'map-photo-name', stop.title));
+  button.title = `${stop.title}${stop.approximate ? ' · ungefährer Fotoort' : ''}`;
+  return button;
+}
+function photoPreviewRect(id) {
+  const rect = map.stopPreviewRect(id);
+  if (rect?.width && rect?.height) return rect;
+  const main = $('main').getBoundingClientRect();
+  return { left: main.left + main.width / 2 - 40, top: main.top + main.height / 2 - 30, width: 80, height: 60 };
+}
+async function finishPhoto(play = true) {
+  if (photoExitPending) return;
+  if (!collage.active) { if (play) player.play(); return; }
+  photoExitPending = true;
+  const revision = collageRevision, id = collage.stop.id;
+  const card = $('collage-images').querySelector('.is-shown');
+  const completed = card ? await photoMotion.move(card, photoPreviewRect(id), card.getBoundingClientRect(), { reverse: true, reduced: matchMedia('(prefers-reduced-motion: reduce)').matches }) : true;
+  if (!completed || revision !== collageRevision || collage.stop?.id !== id) return;
+  map.endPhotoFocus();
+  collage.hide();
+  if (play) player.play(); else player.closeStop();
 }
 function sortedPhotos(stageId) {
   const actual = journey.photos.filter(p => p.stageId === stageId && !p.placeholder);
@@ -151,7 +188,7 @@ function render(state, reason) {
   $('route-progress').value = String(Math.round(state.progress * 1000));
   $('route-progress').setAttribute('aria-valuetext', `${Math.round(state.progress * 100)} Prozent der Etappe`);
   if (reason === 'pause') map.pauseCamera();
-  if (reason === 'stop-jump') map.focusStop(state.progress);
+  if (reason === 'stop-jump' || reason === 'seek') map.focusStop(state.progress);
   else map.setProgress(state.progress, state.started && state.mode === 'presentation' && (state.status === 'playing' || reason === 'seek' || reason === 'stop'), Math.max(.016, (performance.now() - lastFrame) / 1000));
   if (reason === 'tick') return;
   for (const button of document.querySelectorAll('[data-mode]')) button.setAttribute('aria-pressed', String(button.dataset.mode === state.mode));
@@ -216,6 +253,7 @@ function mapStatus(status, message) {
   const titles = { schematic: 'Schematische Vorschau', loading: 'Satellitenkarte wird geladen …', ready: 'Satellit · 3D-Gelände', error: 'Lokale Vorschau · Karte nicht verfügbar' };
   const span = element('span', 'status-dot'); $('map-status').replaceChildren(span, document.createTextNode(titles[status]));
   $('connect-button').hidden = status === 'ready';
+  $('recenter-button').disabled = status !== 'ready';
   $('camera-compass').hidden = status !== 'ready';
   if (status === 'error' && message) text('token-message', message);
   else if (status === 'ready' || status === 'schematic') text('token-message', '');
@@ -256,7 +294,7 @@ async function init() {
   routes = routeResults;
   collage = new PhotoCollage({ loadPhoto: loadCollagePhoto, onChange: renderCollage, pageSize: collagePageSize() });
   new ResizeObserver(() => { collage.setPageSize(collagePageSize()); layoutCollage(); }).observe($('main'));
-  map = new JourneyMap({ stages: journey.stages, routes, onStop: stop => player.openStop(stop, { manual: true }), onStatus: mapStatus, onHeading: bearing => {
+  map = new JourneyMap({ stages: journey.stages, routes, onStop: stop => player.openStop(stop, { manual: true }), onStatus: mapStatus, createStopPreview: stopPreview, onHeading: bearing => {
     if (!Number.isFinite(bearing)) return;
     const degrees = ((bearing % 360) + 360) % 360;
     const direction = ['N', 'NO', 'O', 'SO', 'S', 'SW', 'W', 'NW'][Math.round(degrees / 45) % 8];
@@ -282,9 +320,15 @@ async function init() {
   render(player.state, 'initial');
 
   $('start-button').addEventListener('click', () => player.play());
-  $('play-button').addEventListener('click', () => { closeDialogs(); player.toggle(); });
+  $('play-button').addEventListener('click', () => { closeDialogs(); collage.active ? finishPhoto() : player.toggle(); });
   $('route-progress').addEventListener('input', e => { closeDialogs(); player.seek(Number(e.target.value) / 1000); });
   $('speed-select').addEventListener('change', e => { player.state.speed = Number(e.target.value); });
+  $('recenter-button').addEventListener('click', () => {
+    closeDialogs();
+    if (player.state.mode === 'explore') player.setMode('presentation');
+    map.recenter(player.state.progress);
+    announce('Kamera kehrt zur aktuellen Routenposition zurück.');
+  });
   $('gallery-button').addEventListener('click', openGallery);
   $('settings-button').addEventListener('click', () => { player.pause(); openDialog('settings-dialog'); refreshBrowserCache(); });
   $('connect-button').addEventListener('click', () => { player.pause(); openDialog('settings-dialog'); refreshBrowserCache(); });
@@ -294,8 +338,8 @@ async function init() {
   $('photo-next').addEventListener('click', () => { currentPhotoIndex = Math.min(currentPhotoIds.length - 1, currentPhotoIndex + 1); renderPhoto(); });
   $('photo-previous').addEventListener('click', () => { currentPhotoIndex = Math.max(0, currentPhotoIndex - 1); renderPhoto(); });
   $('continue-button').addEventListener('click', () => $('photo-dialog').close());
-  $('collage-continue').addEventListener('click', () => player.play());
-  $('collage-hide').addEventListener('click', () => { collage.hide(); player.closeStop(); });
+  $('collage-continue').addEventListener('click', () => finishPhoto());
+  $('collage-hide').addEventListener('click', () => finishPhoto(false));
   $('collage-previous').addEventListener('click', () => collage.move(-1));
   $('collage-next').addEventListener('click', () => collage.move(1));
   for (const button of document.querySelectorAll('[data-close]')) button.addEventListener('click', () => $(button.dataset.close).close());
@@ -322,8 +366,8 @@ async function init() {
     }
     if (dialogs.some(d => d.open)) return;
     if (collage.active) {
-      if (event.key === 'Escape') { event.preventDefault(); collage.hide(); player.closeStop(); return; }
-      if (event.code === 'Space') { event.preventDefault(); event.stopPropagation(); player.play(); return; }
+      if (event.key === 'Escape') { event.preventDefault(); finishPhoto(false); return; }
+      if (event.code === 'Space') { event.preventDefault(); event.stopPropagation(); finishPhoto(); return; }
       if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') { event.preventDefault(); event.stopPropagation(); collage.move(event.key === 'ArrowRight' ? 1 : -1); return; }
     }
     if (player.state.mode === 'explore' && event.target.closest('#map') && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', '+', '=', '-'].includes(event.key)) return;
