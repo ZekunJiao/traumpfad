@@ -12,8 +12,9 @@ function svgNode(tag, attributes, text) {
 }
 
 export class JourneyMap {
-  constructor({ stages, routes, onStop, onStatus, onExplore = () => {}, onPitch = () => {} }) {
-    Object.assign(this, { stages, routes, onStop, onStatus, onExplore, onPitch });
+  constructor({ stages, routes, onStop, onStatus, onExplore = () => {}, onPitch = () => {}, onBearing = () => {} }) {
+    Object.assign(this, { stages, routes, onStop, onStatus, onExplore, onPitch, onBearing });
+    this.viewPitch = null; this.viewBearing = 0;
     this.map = null; this.ready = false; this.stageIndex = 0; this.progress = 0; this.markers = []; this.exploring = false;
     this.container = document.getElementById('schematic');
     this.buildSchematic();
@@ -71,6 +72,7 @@ export class JourneyMap {
       window.mapboxgl.maxParallelImageRequests = 4;
       const map = new window.mapboxgl.Map({ container: 'map', accessToken: token, style: 'mapbox://styles/mapbox/standard-satellite', center: [11.48, 47.7], zoom: 8, pitch: 55, minPitch: 0, maxPitch: 85, pitchWithRotate: true, bearing: 0, antialias: true, attributionControl: true, minTileCacheSize: 64, maxTileCacheSize: 256, transformRequest: createTileRequestGate() });
       this.map = map;
+      this.bindLookControls(map);
       map.on('movestart', event => {
         if (map === this.map) this.handleUserNavigation(event);
       });
@@ -123,7 +125,7 @@ export class JourneyMap {
   }
   setStage(index) {
     this.cancelCameraMotion();
-    this.stageIndex = index; this.progress = 0; this.cameraPosition = null; this.cameraAltitude = null;
+    this.stageIndex = index; this.progress = 0; this.cameraPosition = null; this.cameraAltitude = null; this.followHeading = null;
     this.updateSchema();
     if (!this.ready) return;
     this.map.getSource('journey-active').setData(feature(this.routes[index].points));
@@ -168,6 +170,7 @@ export class JourneyMap {
   beginEntry(target) {
     const start = this.map.getFreeCameraOptions();
     if (this.reducedMotion() || !start.position || !start.orientation || !target.orientation) {
+      this.applyFollowView(target);
       this.map.setFreeCameraOptions(target); this.following = true; return;
     }
     this.map.stop();
@@ -181,6 +184,7 @@ export class JourneyMap {
       const camera = this.map.getFreeCameraOptions();
       camera.position = new window.mapboxgl.MercatorCoordinate(pose.position.x, pose.position.y, pose.position.z);
       camera.orientation = pose.orientation;
+      this.applyFollowView(camera);
       this.map.setFreeCameraOptions(camera);
       if (t >= 1) { this.entry = null; this.following = true; }
     }
@@ -199,15 +203,87 @@ export class JourneyMap {
     const bounds = points.reduce((b, p) => b.extend(p), new window.mapboxgl.LngLatBounds(points[0], points[0]));
     this.animateNavigation(() => this.map.fitBounds(bounds, { padding: { top: 80, bottom: 190, left: 50, right: 50 }, pitch: 35, duration: this.reducedMotion() ? 0 : 2600 }));
   }
+  routeHeading() {
+    const route = this.routes[this.stageIndex];
+    return bearing(pointAt(route, clamp(this.progress - 300 / route.length)), pointAt(route, clamp(this.progress + 450 / route.length)));
+  }
+  applyFollowView(camera) {
+    if (this.viewPitch == null && !this.viewBearing) return;
+    const q = camera.orientation;
+    const pitch = this.viewPitch ?? (2 * Math.atan2(Math.hypot(q[0], q[1]), Math.hypot(q[2], q[3])) * 180 / Math.PI);
+    camera.setPitchBearing(pitch, (this.followHeading ?? this.routeHeading()) + (this.viewBearing || 0));
+  }
+  refreshView() {
+    if (!this.ready || !this.map) return;
+    const camera = this.map.getFreeCameraOptions();
+    // Keep the physical camera position; only its orientation changes.
+    camera.setPitchBearing(this.viewPitch ?? this.map.getPitch(), (this.followHeading ?? this.routeHeading()) + (this.viewBearing || 0));
+    this.map.setFreeCameraOptions(camera);
+  }
   setPitch(value) {
     if (!this.ready || !this.map || !Number.isFinite(value)) return;
-    if (!this.exploring) {
-      this.setExplore(true);
-      this.onExplore();
-    } else {
+    this.viewPitch = clamp(value, 0, 85);
+    if (this.exploring) {
       this.cancelCameraMotion();
+      this.map.setPitch(this.viewPitch);
+    } else this.refreshView();
+  }
+  setBearing(value) {
+    if (!this.ready || !this.map || !Number.isFinite(value)) return;
+    this.viewBearing = ((value + 180) % 360 + 360) % 360 - 180;
+    this.onBearing(this.viewBearing);
+    if (this.exploring) {
+      this.cancelCameraMotion();
+      this.map.setBearing(this.routeHeading() + this.viewBearing);
+    } else this.refreshView();
+  }
+  resetView() {
+    if (!this.ready || !this.map) return;
+    this.viewPitch = null; this.viewBearing = 0;
+    this.onBearing(0);
+    if (this.exploring) {
+      this.cancelCameraMotion();
+      this.map.jumpTo({ pitch: 55, bearing: this.routeHeading() });
+    } else if (this.followRequested) this.setProgress(this.progress, true, .1);
+    else {
+      const camera = this.map.getFreeCameraOptions();
+      camera.setPitchBearing(55, this.routeHeading());
+      this.map.setFreeCameraOptions(camera);
     }
-    this.map.setPitch(clamp(value, 0, 85));
+  }
+  lookBy(horizontal, vertical) {
+    if (!this.ready || !this.map || this.exploring) return;
+    this.viewPitch = clamp((this.viewPitch ?? this.map.getPitch()) - vertical * .25, 0, 85);
+    this.setBearing((this.viewBearing || 0) + horizontal * .25);
+  }
+  bindLookControls(map) {
+    const surface = map.getCanvasContainer();
+    let pointer;
+    const canLook = event => map === this.map && this.ready && !this.exploring && (event.button === 2 || (event.button === 0 && event.ctrlKey));
+    surface.addEventListener('pointerdown', event => {
+      if (!canLook(event)) return;
+      pointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
+      surface.setPointerCapture(event.pointerId);
+      event.preventDefault(); event.stopImmediatePropagation();
+    }, true);
+    surface.addEventListener('pointermove', event => {
+      if (!pointer || pointer.id !== event.pointerId) return;
+      this.lookBy(event.clientX - pointer.x, event.clientY - pointer.y);
+      pointer.x = event.clientX; pointer.y = event.clientY;
+      event.preventDefault(); event.stopImmediatePropagation();
+    }, true);
+    for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) surface.addEventListener(type, event => {
+      if (!pointer || pointer.id !== event.pointerId) return;
+      pointer = null;
+      if (surface.hasPointerCapture(event.pointerId)) surface.releasePointerCapture(event.pointerId);
+      event.stopImmediatePropagation();
+    }, true);
+    surface.addEventListener('mousedown', event => {
+      if (canLook(event)) { event.preventDefault(); event.stopImmediatePropagation(); }
+    }, true);
+    surface.addEventListener('contextmenu', event => {
+      if (map === this.map && !this.exploring) { event.preventDefault(); event.stopImmediatePropagation(); }
+    }, true);
   }
   handleUserNavigation(event) {
     // SDK camera animations also emit movestart; only gestures take over the tour.
@@ -272,7 +348,11 @@ export class JourneyMap {
     const camera = this.map.getFreeCameraOptions();
     camera.position = window.mapboxgl.MercatorCoordinate.fromLngLat(this.cameraPosition, this.cameraAltitude);
     camera.lookAtPoint({ lng: target[0], lat: target[1] });
+    this.followHeading = bearing(this.cameraPosition, target);
     if (!this.following) this.beginEntry(camera);
-    else this.map.setFreeCameraOptions(camera);
+    else {
+      this.applyFollowView(camera);
+      this.map.setFreeCameraOptions(camera);
+    }
   }
 }
