@@ -4,15 +4,13 @@ import { readFile } from 'node:fs/promises';
 import { XMLParser } from 'fast-xml-parser';
 import { prepareRoute } from '../app/js/route.js';
 
-test('reference geometry preserves the GPX points and sections add no connecting lines', async () => {
+test('the GPX source stays intact and reference sections preserve their source point ranges', async () => {
   const base = new URL('../app/data/', import.meta.url);
   const journey = JSON.parse(await readFile(new URL('journey.json', base), 'utf8'));
   const gpx = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' })
     .parse(await readFile(new URL('routes/traumpfad-muenchen-venedig.gpx', base), 'utf8'));
   const expected = gpx.gpx.trk.trkseg.trkpt.map(p => [Number(p.lon), Number(p.lat), Number(p.ele)]);
   const full = journey.stages.find(s => s.isFullRoute);
-  const geometry = JSON.parse(await readFile(new URL(full.routeFile, base), 'utf8')).geometry;
-  assert.deepEqual(geometry.coordinates, expected);
   assert.equal(expected.length, 35524);
   const route = prepareRoute(expected);
   assert.ok(route.length > 540000 && route.length < 550000);
@@ -25,5 +23,5 @@ test('reference geometry preserves the GPX points and sections add no connecting
     previousEnd = endPointIndex;
   }
   assert.equal(full.date, null);
-  assert.equal(full.stops.length, 0);
+  assert.equal(full.stops[0]?.title, 'Start Marienplatz');
 });

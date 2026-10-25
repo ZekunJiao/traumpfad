@@ -16,6 +16,10 @@ async function fixture() {
   for (const file of ['scripts/import-photos.mjs', 'scripts/photo-utils.mjs', 'scripts/import-route.mjs', 'app/js/route.js']) await copyFile(path.join(project, file), path.join(dir, file));
   await writeFile(path.join(dir, 'package.json'), '{"type":"module"}');
   const manifest = JSON.parse(await readFile(path.join(project, 'app/data/journey.json'), 'utf8'));
+  // The user's working manifest may contain uploaded photos; keep this test fixture isolated.
+  manifest.photos = manifest.photos.filter(photo => photo.placeholder);
+  const fixturePhotoIds = new Set(manifest.photos.map(photo => photo.id));
+  for (const stage of manifest.stages) for (const stop of stage.stops) stop.photoIds = stop.photoIds.filter(id => fixturePhotoIds.has(id));
   manifest.stages.find(s => s.id === 'tag-01').date = '2025-07-12';
   await writeFile(path.join(dir, 'app/data/journey.json'), JSON.stringify(manifest));
   return dir;

@@ -22,7 +22,7 @@ export function buildJourneyTimeline(stages, routes) {
 
   const segments = [], markers = [];
   stages.forEach((stage, stageIndex) => {
-    if (stage.isFullRoute) return;
+    if (stage.isFullRoute || stage.isPointStage) return;
     const { startPointIndex, endPointIndex } = stage.routeProvenance || {};
     if (!Number.isInteger(startPointIndex) || !Number.isInteger(endPointIndex)
       || startPointIndex < 0 || endPointIndex <= startPointIndex || endPointIndex >= fullRoute.points.length) return;
@@ -65,6 +65,22 @@ export function buildJourneyTimeline(stages, routes) {
 
   segments.sort((a, b) => a.start - b.start || a.end - b.end);
   return { fullRouteIndex, routeLength: fullRoute.length, segments, markers: groupMarkers(markers, fullRoute.length) };
+}
+
+/** Copies local photo-stop positions onto the single route used by playback and map markers. */
+export function projectPlaybackStops(stages, timeline) {
+  const segments = timeline?.segments || [];
+  return stages.filter(stage => !stage.isPointStage).flatMap(stage => (stage.stops || []).map(stop => {
+    const segment = stage.isFullRoute ? null : segments.find(item => item.id === stage.id);
+    const localProgress = clamp(stop.progress);
+    return {
+      ...stop,
+      stageId: stage.id,
+      day: stage.day || null,
+      stageTitle: stage.title,
+      progress: segment ? segment.start + (segment.end - segment.start) * localProgress : localProgress
+    };
+  })).sort((a, b) => a.progress - b.progress);
 }
 
 export function timelineSegmentAt(segments, progress) {

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildJourneyTimeline, timelineSegmentAt, visibleTimelineMarkerGroups } from '../app/js/timeline.js';
+import { buildJourneyTimeline, projectPlaybackStops, timelineSegmentAt, visibleTimelineMarkerGroups } from '../app/js/timeline.js';
 import { prepareRoute } from '../app/js/route.js';
 
 const full = prepareRoute([[0, 0], [1, 0], [2, 0], [3, 0], [4, 0]]);
@@ -29,6 +29,23 @@ test('maps day sections and local photo stops by cumulative full-route distance'
   assert.equal(timelineSegmentAt(timeline.segments, .3).day, 2);
   assert.equal(timelineSegmentAt(timeline.segments, .9), null);
   assert.equal(timelineSegmentAt(timeline.segments, 1), null);
+});
+
+test('projects day-local photo stops onto the single playback route without changing saved positions', () => {
+  const localStop = { id: 'day-photo', progress: .5, title: 'Aussicht', photoIds: ['bild'] };
+  const stages = [
+    { ...wholeRoute, title: 'Gesamt', stops: [{ id: 'start', progress: 0 }] },
+    day(1, 0, 1, [localStop]),
+    day(2, 1, 3)
+  ];
+  const timeline = buildJourneyTimeline(stages, [full]);
+  const projected = projectPlaybackStops(stages, timeline);
+
+  assert.deepEqual(projected.map(stop => stop.id), ['start', 'day-photo']);
+  assert.equal(projected[1].stageId, 'tag-1');
+  assert.equal(projected[1].day, 1);
+  assert.ok(Math.abs(projected[1].progress - .125) < 1e-12);
+  assert.equal(localStop.progress, .5);
 });
 
 test('groups a photo stop with its coincident day boundary and keeps sleeping-place details', () => {

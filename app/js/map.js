@@ -16,6 +16,11 @@ const WHEEL_PIXELS_PER_ZOOM_STEP = 700;
 const BUTTON_ZOOM_STEP = 0.35;
 const EXPLORE_TRACKPAD_ZOOM_RATE = 0.0075;
 const EXPLORE_WHEEL_ZOOM_RATE = 1 / 650;
+const LANDMARK_FULL_OPACITY_DISTANCE = 8_000;
+const LANDMARK_FADE_DISTANCE = 80_000;
+const LANDMARK_MIN_OPACITY = 0.28;
+const LANDMARK_LABELS_MIN_ZOOM = 9.5;
+const FOLLOW_TRAIL_DISTANCE_METERS = 2_000;
 export const routePosition = (route, progress) => ({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: pointAt(route, progress) } });
 function svgNode(tag, attributes, text) {
   const node = document.createElementNS(SVG, tag);
@@ -25,8 +30,8 @@ function svgNode(tag, attributes, text) {
 }
 
 export class JourneyMap {
-  constructor({ stages, routes, onStop, onRouteSeek = () => {}, onMapPoint = () => {}, onStatus, createStopPreview, onExplore = () => {}, onPitch = () => {}, onBearing = () => {}, onHeight = () => {}, onHeading = () => {} }) {
-    Object.assign(this, { stages, routes, onStop, onRouteSeek, onMapPoint, onStatus, createStopPreview, onExplore, onPitch, onBearing, onHeight, onHeading });
+  constructor({ stages, routes, bookmarks = [], pointStages = [], onPointSelect = () => {}, onStop, onRouteSeek = () => {}, onMapPoint = () => {}, onStatus, createStopPreview, onExplore = () => {}, onPitch = () => {}, onBearing = () => {}, onHeight = () => {}, onHeading = () => {} }) {
+    Object.assign(this, { stages, routes, bookmarks, pointStages, onPointSelect, onStop, onRouteSeek, onMapPoint, onStatus, createStopPreview, onExplore, onPitch, onBearing, onHeight, onHeading });
     this.viewPitch = null; this.viewBearing = 0; this.viewDistance = 1; this.heightOffset = 0;
     this.map = null; this.ready = false; this.stageIndex = 0; this.progress = 0; this.markers = []; this.landmarkMarkers = []; this.exploring = false; this.editPlacement = null;
     this.container = document.getElementById('schematic');
@@ -46,7 +51,10 @@ export class JourneyMap {
     const relief2 = svgNode('g', { transform: `translate(${width * .4} ${height * .85}) rotate(25)`, fill: 'none', stroke: '#b6c598', 'stroke-width': '.7', opacity: '.08' });
     for (let i = 0; i < 15; i++) relief2.append(svgNode('ellipse', { cx: 0, cy: 0, rx: 60 + i * 19, ry: 30 + i * 12 }));
     svg.append(relief2);
-    const points = this.routes.flatMap(r => r.points);
+    const points = [
+      ...this.routes.flatMap(r => r.points),
+      ...this.pointStages.map(stage => stage.location.coordinates)
+    ];
     const minLon = Math.min(...points.map(p => p[0])), maxLon = Math.max(...points.map(p => p[0]));
     const minLat = Math.min(...points.map(p => p[1])), maxLat = Math.max(...points.map(p => p[1]));
     this.project = p => [width * .54 + (p[0] - minLon) / Math.max(.01, maxLon - minLon) * width * .22, height * .15 + (maxLat - p[1]) / Math.max(.01, maxLat - minLat) * (height * .61 - 25)];
@@ -62,17 +70,49 @@ export class JourneyMap {
       svg.append(svgNode('circle', { cx: p[0], cy: p[1], r: 4, fill: '#dcdcc0', opacity: '.7' }));
       svg.append(svgNode('text', { x: p[0] + 12, y: p[1] + 4, class: 'schema-label' }, this.stages[i].start));
     });
-    const fullRouteIndex = this.stages.findIndex(stage => stage.isFullRoute);
-    const finalIndex = fullRouteIndex >= 0 ? fullRouteIndex : this.routes.length - 1;
-    const end = this.project(this.routes[finalIndex].points.at(-1));
+    const finalIndex = this.stages.findIndex(stage => stage.isFullRoute);
+    const routeIndex = finalIndex >= 0 ? finalIndex : this.routes.length - 1;
+    const end = this.project(this.routes[routeIndex].points.at(-1));
     svg.append(svgNode('circle', { cx: end[0], cy: end[1], r: 4, fill: '#dcdcc0' }));
-    svg.append(svgNode('text', { x: end[0] + 12, y: end[1] + 4, class: 'schema-label' }, this.stages[finalIndex].end));
+    svg.append(svgNode('text', { x: end[0] + 12, y: end[1] + 4, class: 'schema-label' }, this.stages[routeIndex].end));
+    for (const place of overnightPlaces(this.bookmarks, this.routes[routeIndex])) {
+      const position = this.project(pointAt(this.routes[routeIndex], place.progress));
+      const marker = svgNode('g', { class: 'schema-overnight', 'aria-label': `Tag ${place.day}: ${place.name}` });
+      marker.append(svgNode('circle', { cx: position[0], cy: position[1], r: 2.5, fill: '#e8c183', stroke: '#183d35', 'stroke-width': 1 }));
+      marker.append(svgNode('text', { x: position[0] + 7, y: position[1] - 5, class: 'schema-label' }, `${String(place.day).padStart(2, '0')} · ${place.name}`));
+      svg.append(marker);
+    }
+    for (const stage of this.pointStages) {
+      const position = this.project(stage.location.coordinates);
+      const marker = svgNode('g', {
+        class: 'schema-point-stage',
+        'data-point-stage-id': stage.id,
+        role: 'button',
+        tabindex: '0',
+        'aria-label': `${stage.title} · Standpunkt öffnen`
+      });
+      marker.append(svgNode('circle', { cx: position[0], cy: position[1], r: 10, fill: '#183d35', stroke: '#f0cf91', 'stroke-width': 2 }));
+      marker.append(svgNode('text', { x: position[0], y: position[1] + 4, 'text-anchor': 'middle', class: 'schema-point-symbol' }, '⌖'));
+      marker.append(svgNode('text', { x: position[0] + 15, y: position[1] + 4, class: 'schema-point-label' }, stage.title));
+      marker.addEventListener('click', event => { event.stopPropagation(); this.onPointSelect(stage); });
+      marker.addEventListener('keydown', event => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault(); event.stopPropagation(); this.onPointSelect(stage);
+      });
+      svg.append(marker);
+    }
     this.schemaTravelled = svgNode('path', { fill: 'none', stroke: '#e8c183', 'stroke-width': '3.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
     this.schemaDot = svgNode('circle', { r: 6, fill: '#ffffff', stroke: '#314b3a', 'stroke-width': 2 });
     svg.append(this.schemaTravelled, this.schemaDot);
-    this.container.append(svg); this.updateSchema();
+    this.container.append(svg); this.updateSchema(); this.updatePointStageSelection();
   }
   handleSchematicRouteClick(event) {
+    const pointStageMarker = event.target?.closest?.('[data-point-stage-id]');
+    if (pointStageMarker) {
+      const stage = this.pointStages.find(item => item.id === pointStageMarker.dataset.pointStageId);
+      if (stage) this.onPointSelect(stage);
+      return;
+    }
     if (event.target?.closest?.('.map-photo-preview,[data-stop-id]')) return;
     const svg = this.container.querySelector('svg'), matrix = svg?.getScreenCTM?.();
     if (!svg || !matrix) return;
@@ -135,9 +175,15 @@ export class JourneyMap {
       this.bindLookControls(map);
       this.bindZoomControls(map);
       map.on('move', () => {
-        if (map === this.map) this.onHeading(map.getBearing());
+        if (map !== this.map) return;
+        this.onHeading(map.getBearing());
+        this.updateLandmarkOpacities();
       });
-      map.on('zoom', () => { if (map === this.map) this.updateLandmarkAltitudes(); });
+      map.on('zoom', () => {
+        if (map !== this.map) return;
+        this.updateLandmarkAltitudes();
+        this.updateLandmarkOpacities();
+      });
       map.on('movestart', event => {
         if (map === this.map) this.handleUserNavigation(event);
       });
@@ -160,7 +206,7 @@ export class JourneyMap {
           map.addSource('journey-position', { type: 'geojson', data: routePosition(this.routes[this.stageIndex], this.progress) });
           map.addLayer({ id: 'journey-position', type: 'circle', slot: 'middle', source: 'journey-position', paint: { 'circle-radius': 6, 'circle-color': '#ffffff', 'circle-stroke-color': '#183d35', 'circle-stroke-width': 2 } });
           this.bindRouteInteractions(map);
-          this.overnightMarkers = overnightPlaces(this.stages, this.routes).map(place => {
+          this.overnightMarkers = overnightPlaces(this.bookmarks, this.routes[0]).map(place => {
             const label = document.createElement('div'); label.className = 'overnight-place';
             const dot = document.createElement('span'); dot.className = 'overnight-dot'; dot.textContent = String(place.day);
             const name = document.createElement('span'); name.className = 'overnight-name'; name.textContent = place.name;
@@ -172,10 +218,21 @@ export class JourneyMap {
             ...mountainRegions.map(region => this.createLandmarkMarker(region, 'region', map)),
             ...borderCrossings.map(crossing => this.createLandmarkMarker(crossing, 'border', map))
           ];
+          this.pointStageMarkers = this.pointStages.map(stage => this.createPointStageMarker(stage, map));
+          this.updatePointStageSelection();
           this.updateLandmarkAltitudes();
+          this.updateLandmarkOpacities();
           const pendingStop = this.pendingStopProgress;
-          this.ready = true; this.container.hidden = true; this.onStatus('ready'); this.setStage(this.stageIndex); this.setExplore(this.exploring);
-          if (Number.isFinite(pendingStop)) this.focusStop(pendingStop);
+          const pendingFocus = this.pendingFocusProgress;
+          const pendingPoint = this.pendingPointCoordinates;
+          const pendingProgress = this.progress;
+          const pendingOverview = this.pendingOverview;
+          this.pendingOverview = false;
+          this.ready = true; this.container.hidden = true; this.onStatus('ready'); this.setStage(this.stageIndex, { fitOverview: pendingOverview }); this.setExplore(this.exploring);
+          if (Array.isArray(pendingPoint)) this.focusPoint(pendingPoint);
+          else if (Number.isFinite(pendingFocus)) this.focusBookmark(pendingFocus);
+          else if (Number.isFinite(pendingStop)) this.focusStop(pendingStop);
+          else this.setProgress(pendingProgress, false);
         } catch (error) { this.fail('Die 3D-Karte konnte nicht aufgebaut werden. ' + error.message); }
       });
       map.on('error', event => {
@@ -205,6 +262,7 @@ export class JourneyMap {
     this.markers.forEach(marker => marker.remove()); this.markers = [];
     this.overnightMarkers?.forEach(marker => marker.remove()); this.overnightMarkers = [];
     this.landmarkMarkers.forEach(({ marker }) => marker.remove()); this.landmarkMarkers = [];
+    this.pointStageMarkers?.forEach(marker => marker.remove()); this.pointStageMarkers = [];
     failedMap?.remove();
     this.container.hidden = false; this.onStatus('error', message);
   }
@@ -237,7 +295,18 @@ export class JourneyMap {
       .setLngLat(place.coordinates)
       .addTo(map);
     marker.getElement().style.zIndex = kind === 'border' ? '7' : '6';
-    return { marker, place };
+    return { marker, place, kind };
+  }
+  createPointStageMarker(stage, map) {
+    const button = document.createElement('button');
+    button.type = 'button'; button.className = 'map-point-stage-marker';
+    button.dataset.pointStageId = stage.id;
+    button.textContent = `⌖ ${stage.title}`;
+    button.setAttribute('aria-label', `${stage.title} · Standpunkt auf der Karte öffnen`);
+    button.addEventListener('click', event => {
+      event.preventDefault(); event.stopPropagation(); this.onPointSelect(stage);
+    });
+    return new window.mapboxgl.Marker({ element: button, anchor: 'bottom' }).setLngLat(stage.location.coordinates).addTo(map);
   }
   bindRouteInteractions(map) {
     const layers = ['journey-active', 'journey-all'];
@@ -251,7 +320,7 @@ export class JourneyMap {
       return [result.x, result.y];
     };
     map.on('click', event => {
-      if (map !== this.map || !this.ready || event.originalEvent?.target?.closest?.('.map-photo-preview,[data-stop-id],.map-landmark,.overnight-place')) return;
+      if (map !== this.map || !this.ready || event.originalEvent?.target?.closest?.('.map-photo-preview,[data-stop-id],.map-landmark,.overnight-place,.map-point-stage-marker')) return;
       if (this.editPlacement) {
         event.preventDefault();
         const route = this.routes[this.stageIndex], progress = nearestProgress(route, [event.lngLat.lng, event.lngLat.lat]);
@@ -278,16 +347,36 @@ export class JourneyMap {
       marker.setAltitude(Math.max(.5, Math.min(25000, metersPerPixel * 26)));
     }
   }
-  setStage(index) {
+  updateLandmarkOpacities() {
+    if (!this.map || !this.landmarkMarkers.length) return;
+    const overview = this.map.getZoom() < LANDMARK_LABELS_MIN_ZOOM;
+    const center = this.map.getCenter(), viewPoint = [center.lng, center.lat];
+    for (const { marker, place, kind } of this.landmarkMarkers) {
+      const element = marker.getElement();
+      if (overview) {
+        element.style.visibility = 'hidden';
+        element.style.opacity = '0';
+        continue;
+      }
+      element.style.removeProperty('visibility');
+      if (kind !== 'region') { element.style.opacity = '1'; continue; }
+      const away = distance(viewPoint, place.coordinates);
+      const t = clamp((away - LANDMARK_FULL_OPACITY_DISTANCE) / (LANDMARK_FADE_DISTANCE - LANDMARK_FULL_OPACITY_DISTANCE));
+      const eased = t * t * (3 - 2 * t);
+      element.style.opacity = String(1 - eased * (1 - LANDMARK_MIN_OPACITY));
+    }
+  }
+  setStage(index, { fitOverview = false } = {}) {
     this.photoCamera = null;
     this.pendingStopProgress = null;
     this.cancelCameraMotion();
     this.stageIndex = index; this.progress = 0; this.cameraPosition = null; this.cameraAltitude = null; this.followHeading = null; this.cameraTarget = null; this.pathHeading = null;
     this.schemaPreviewStage = null; this.updateSchema();
-    if (!this.ready) return;
+    if (!this.ready) { this.pendingOverview = fitOverview; return; }
     this.map.getSource('journey-active').setData(feature(this.routes[index].points, { stageIndex: index }));
     this.renderStopMarkers(index);
-    this.setProgress(0, false); this.flyToRoutePoint(0);
+    this.setProgress(0, false);
+    if (fitOverview) this.overview({ immediate: true }); else this.flyToRoutePoint(0);
   }
   renderStopMarkers(index) {
     this.markers.forEach(m => m.remove());
@@ -307,11 +396,47 @@ export class JourneyMap {
     if (this.ready) this.renderStopMarkers(this.stageIndex);
   }
   focusStop(progress) {
+    this.pendingFocusProgress = null;
     this.cancelCameraMotion(); this.cameraPosition = null; this.cameraAltitude = null; this.cameraTarget = null; this.pathHeading = null;
     if (!this.ready) { this.pendingStopProgress = progress; this.setProgress(progress, false); return; }
     this.pendingStopProgress = null;
     if (this.exploring) { this.setProgress(progress, false); this.flyToRoutePoint(progress); }
     else this.setProgress(progress);
+  }
+  focusBookmark(progress) {
+    this.pendingStopProgress = null;
+    this.pendingFocusProgress = progress;
+    if (!this.ready) { this.setProgress(progress, false); return; }
+    this.pendingFocusProgress = null;
+    this.cancelCameraMotion(); this.cameraPosition = null; this.cameraAltitude = null; this.cameraTarget = null; this.pathHeading = null;
+    this.setProgress(progress, false);
+    this.flyToRoutePoint(progress);
+  }
+  focusPoint(coordinates) {
+    this.pendingPointCoordinates = coordinates;
+    const pointStage = this.pointStages.find(stage => stage.location.coordinates === coordinates);
+    this.selectedPointStageId = pointStage?.id || null;
+    this.updatePointStageSelection();
+    if (!this.ready || !this.map) return;
+    this.pendingPointCoordinates = null;
+    this.pendingFocusProgress = null; this.pendingStopProgress = null;
+    this.cancelCameraMotion(); this.cameraPosition = null; this.cameraAltitude = null; this.cameraTarget = null; this.pathHeading = null;
+    const heading = this.map.getBearing();
+    this.animateNavigation(() => this.map.flyTo({ center: coordinates, zoom: 15.5, pitch: 38, bearing: heading, duration: this.reducedMotion() ? 0 : 1900 }));
+  }
+  clearPointStageSelection() {
+    this.selectedPointStageId = null;
+    this.pendingPointCoordinates = null;
+    this.updatePointStageSelection();
+  }
+  updatePointStageSelection() {
+    this.container.querySelectorAll('[data-point-stage-id]').forEach(marker => {
+      marker.classList.toggle('is-selected', marker.dataset.pointStageId === this.selectedPointStageId);
+    });
+    for (const marker of this.pointStageMarkers || []) {
+      const element = marker.getElement();
+      element.classList.toggle('is-selected', element.dataset.pointStageId === this.selectedPointStageId);
+    }
   }
   stopPreviewRect(id) {
     const root = this.ready ? document.getElementById('map') : this.container;
@@ -424,12 +549,12 @@ export class JourneyMap {
     const padding = this.map.getContainer().clientWidth > 650 ? { top: 100, bottom: 200, left: 350, right: 65 } : { top: 100, bottom: 170, left: 35, right: 35 };
     this.animateNavigation(() => this.map.fitBounds(bounds, { padding, pitch: 50, duration: this.reducedMotion() ? 0 : 2600, maxZoom: 13 }));
   }
-  overview() {
+  overview({ immediate = false } = {}) {
     this.photoCamera = null;
-    if (!this.ready) return;
+    if (!this.ready) { this.pendingOverview = true; return; }
     const points = this.routes.flatMap(r => r.points);
     const bounds = points.reduce((b, p) => b.extend(p), new window.mapboxgl.LngLatBounds(points[0], points[0]));
-    this.animateNavigation(() => this.map.fitBounds(bounds, { padding: { top: 80, bottom: 190, left: 50, right: 50 }, pitch: 35, duration: this.reducedMotion() ? 0 : 2600 }));
+    this.animateNavigation(() => this.map.fitBounds(bounds, { padding: { top: 80, bottom: 190, left: 50, right: 50 }, pitch: 35, duration: immediate || this.reducedMotion() ? 0 : 2600 }));
   }
   routeHeading() {
     const route = this.routes[this.stageIndex];
@@ -703,7 +828,7 @@ export class JourneyMap {
     const heading = easeHeading(this.following ? this.pathHeading : null, scenicHeading(route, progress), delta);
     this.pathHeading = heading;
     const distance = this.viewDistance ?? 1;
-    const desired = destination(scenicPoint(route, progress).map((v, i) => v + offset[i]), 1800 * distance, heading + 180);
+    const desired = destination(scenicPoint(route, progress).map((v, i) => v + offset[i]), FOLLOW_TRAIL_DISTANCE_METERS * distance, heading + 180);
     const blend = this.following && this.cameraPosition ? 1 - Math.exp(-Math.min(delta, .1) * 1.2) : 1;
     this.cameraPosition = this.cameraPosition ? this.cameraPosition.map((v, i) => v + (desired[i] - v) * blend) : desired;
     // Probe the camera-to-target corridor, not only the ground under the camera.

@@ -113,20 +113,32 @@
       "title": "München → Venedig",
       "start": "Marienplatz, München",
       "end": "Markusplatz, Venedig",
-      "description": "Der veröffentlichte Traumpfad-Gesamttrack mit 35.524 Punkten und rund 545 km. Referenzvariante mit Fährüberfahrt nach Venedig; noch nicht auf deine 27 Reisetage aufgeteilt. Bei Sottoguda enthält die Quelle einen rund 1,36 km langen Abschnitt mit ungenauer Wegführung.",
+      "description": "Eine durchgehende Route aus 27 Tagesetappen von München bis zum Markusplatz in Venedig. Länge: 549.8 km. Die Tagesdateien bleiben als Quellen erhalten.",
       "overnight": null,
       "routeFile": "routes/gesamtstrecke.geojson",
       "routeProvenance": {
-        "kind": "reconstructed",
-        "source": "traumpfad-muenchen-venedig.gpx",
+        "kind": "composite",
+        "source": "Tagesrouten 01–27",
         "url": "https://fastestknowntime.com/route/traumpfad-munchen-venedig-germany-austria-italy",
         "author": "Björn Mußmann – Outdooractive Community",
         "originalUrl": "https://www.outdooractive.com/r/104193538",
         "downloadedAt": "2026-10-25",
-        "note": "Veröffentlichter GPX-Referenztrack (2018), rund 545 km. Enthält Varianten und Fährüberfahrt nach Venedig. Keine persönliche GPS-Aufzeichnung. Ein rund 1,36 km langer Abschnitt bei 11.906 / 46.435 ist nur durch seine Endpunkte beschrieben; dort ist die Wegführung ungenau."
+        "note": "Zusammengesetzt aus den 27 Tagesrouten in chronologischer Reihenfolge. Kurze direkte Verbindungen schließen kleine Lücken zwischen aufeinanderfolgenden Tagesrouten.",
+        "connectorCount": 1
       },
       "durationSeconds": 1200,
-      "stops": []
+      "stops": [
+        {
+          "id": "stopp-bd30e467-49e1-4452-b514-9920b048c05b",
+          "progress": 0,
+          "title": "Start Marienplatz",
+          "approximate": true,
+          "caption": "",
+          "photoIds": [
+            "upload-203cada1-8182-4909-8b60-5a4a73d703c5"
+          ]
+        }
+      ]
     },
     {
       "id": "tag-01",
@@ -147,18 +159,24 @@
         "downloadedAt": "2026-10-25",
         "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Etappengrenzen am Track angenähert; persönliche Tagesaufteilung und Fotostopps noch abgleichen.",
         "startPointIndex": 0,
-        "endPointIndex": 1546
+        "endPointIndex": 1546,
+        "sourcePointRange": {
+          "startPointIndex": 0,
+          "endPointIndex": 1546
+        },
+        "stageId": "tag-01",
+        "coordinateSpace": "composite-route"
       },
       "durationSeconds": 55,
       "stops": [
         {
           "id": "stopp-01",
           "progress": 0.08,
-          "title": "Der erste Schritt",
+          "title": "Schlafplatz 1",
           "approximate": true,
           "caption": "Hier könntest du dein Startfoto zeigen und erzählen, mit welchem Gefühl du losgegangen bist. Beispiel-Fotostopp, noch kein tatsächlicher Aufnahmeort.",
           "photoIds": [
-            "demo-01"
+            "upload-295e003d-9fcd-4ab7-8808-3ae0d1214608"
           ]
         },
         {
@@ -169,6 +187,16 @@
           "caption": "Ein Platz für die erste Pause, den Blick zurück oder eine kleine Begegnung. Ort und Bilder ergänzen wir gemeinsam.",
           "photoIds": [
             "demo-02"
+          ]
+        },
+        {
+          "id": "stopp-71c65edd-2508-4fb6-bfb8-4b505be264ef",
+          "progress": 0.7880052148670689,
+          "title": "Neuer Fotopunkt",
+          "approximate": true,
+          "caption": "",
+          "photoIds": [
+            "upload-3fe0035f-8947-40f2-9cbf-f926f6ae9590"
           ]
         }
       ],
@@ -193,7 +221,13 @@
         "downloadedAt": "2026-10-25",
         "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Etappengrenzen am Track angenähert; persönliche Tagesaufteilung und Fotostopps noch abgleichen.",
         "startPointIndex": 1546,
-        "endPointIndex": 2801
+        "endPointIndex": 2801,
+        "sourcePointRange": {
+          "startPointIndex": 1546,
+          "endPointIndex": 2801
+        },
+        "stageId": "tag-02",
+        "coordinateSpace": "composite-route"
       },
       "durationSeconds": 50,
       "stops": [
@@ -229,7 +263,13 @@
         "downloadedAt": "2026-10-25",
         "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Etappengrenzen am Track angenähert; persönliche Tagesaufteilung und Fotostopps noch abgleichen.",
         "startPointIndex": 2801,
-        "endPointIndex": 3768
+        "endPointIndex": 3768,
+        "sourcePointRange": {
+          "startPointIndex": 2801,
+          "endPointIndex": 3768
+        },
+        "stageId": "tag-03",
+        "coordinateSpace": "composite-route"
       },
       "durationSeconds": 65,
       "stops": [
@@ -275,7 +315,13 @@
         "downloadedAt": "2026-10-25",
         "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Etappengrenzen am Track angenähert; persönliche Tagesaufteilung und Fotostopps noch abgleichen.",
         "startPointIndex": 3768,
-        "endPointIndex": 4724
+        "endPointIndex": 4724,
+        "sourcePointRange": {
+          "startPointIndex": 3768,
+          "endPointIndex": 4724
+        },
+        "stageId": "tag-04",
+        "coordinateSpace": "composite-route"
       },
       "durationSeconds": 55,
       "stops": [
@@ -311,7 +357,13 @@
         "downloadedAt": "2026-10-25",
         "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Etappengrenzen am Track angenähert; persönliche Tagesaufteilung und Fotostopps noch abgleichen.",
         "startPointIndex": 4724,
-        "endPointIndex": 6096
+        "endPointIndex": 6096,
+        "sourcePointRange": {
+          "startPointIndex": 4724,
+          "endPointIndex": 6096
+        },
+        "stageId": "tag-05",
+        "coordinateSpace": "composite-route"
       },
       "durationSeconds": 65,
       "stops": [
@@ -347,7 +399,13 @@
         "downloadedAt": "2026-10-25",
         "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Etappengrenzen am Track angenähert; persönliche Tagesaufteilung und Fotostopps noch abgleichen.",
         "startPointIndex": 6096,
-        "endPointIndex": 6931
+        "endPointIndex": 6931,
+        "sourcePointRange": {
+          "startPointIndex": 6096,
+          "endPointIndex": 6931
+        },
+        "stageId": "tag-06",
+        "coordinateSpace": "composite-route"
       },
       "durationSeconds": 65,
       "stops": [
@@ -384,7 +442,13 @@
         "downloadedAt": "2026-10-25",
         "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Etappengrenzen am Track angenähert; persönliche Tagesaufteilung und Fotostopps noch abgleichen.",
         "startPointIndex": 6931,
-        "endPointIndex": 7890
+        "endPointIndex": 7890,
+        "sourcePointRange": {
+          "startPointIndex": 6931,
+          "endPointIndex": 7890
+        },
+        "stageId": "tag-07",
+        "coordinateSpace": "composite-route"
       },
       "durationSeconds": 55,
       "stops": [
@@ -430,7 +494,13 @@
         "downloadedAt": "2026-10-25",
         "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Tagesgrenzen an der 28-Tage-Variante angenähert; persönliche Tagesrouten, Übernachtungen und Fotostopps noch abzugleichen.",
         "startPointIndex": 7890,
-        "endPointIndex": 8745
+        "endPointIndex": 8745,
+        "sourcePointRange": {
+          "startPointIndex": 7890,
+          "endPointIndex": 8745
+        },
+        "stageId": "tag-08",
+        "coordinateSpace": "composite-route"
       },
       "durationSeconds": 55,
       "stops": [],
@@ -455,7 +525,13 @@
         "downloadedAt": "2026-10-25",
         "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Tagesgrenzen an der 28-Tage-Variante angenähert; persönliche Tagesrouten, Übernachtungen und Fotostopps noch abzugleichen.",
         "startPointIndex": 8745,
-        "endPointIndex": 9523
+        "endPointIndex": 9523,
+        "sourcePointRange": {
+          "startPointIndex": 8745,
+          "endPointIndex": 9523
+        },
+        "stageId": "tag-09",
+        "coordinateSpace": "composite-route"
       },
       "durationSeconds": 50,
       "stops": [],
@@ -480,7 +556,13 @@
         "downloadedAt": "2026-10-25",
         "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Tagesgrenzen an der 28-Tage-Variante angenähert; persönliche Tagesrouten, Übernachtungen und Fotostopps noch abzugleichen.",
         "startPointIndex": 9523,
-        "endPointIndex": 10177
+        "endPointIndex": 10177,
+        "sourcePointRange": {
+          "startPointIndex": 9523,
+          "endPointIndex": 10177
+        },
+        "stageId": "tag-10",
+        "coordinateSpace": "composite-route"
       },
       "durationSeconds": 55,
       "stops": [],
@@ -505,7 +587,13 @@
         "downloadedAt": "2026-10-25",
         "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Tagesgrenzen an der 28-Tage-Variante angenähert; persönliche Tagesrouten, Übernachtungen und Fotostopps noch abzugleichen.",
         "startPointIndex": 10177,
-        "endPointIndex": 11284
+        "endPointIndex": 11284,
+        "sourcePointRange": {
+          "startPointIndex": 10177,
+          "endPointIndex": 11284
+        },
+        "stageId": "tag-11",
+        "coordinateSpace": "composite-route"
       },
       "durationSeconds": 55,
       "stops": [],
@@ -530,7 +618,13 @@
         "downloadedAt": "2026-10-25",
         "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Tagesgrenzen an der 28-Tage-Variante angenähert; persönliche Tagesrouten, Übernachtungen und Fotostopps noch abzugleichen.",
         "startPointIndex": 11284,
-        "endPointIndex": 14571
+        "endPointIndex": 14571,
+        "sourcePointRange": {
+          "startPointIndex": 11284,
+          "endPointIndex": 14571
+        },
+        "stageId": "tag-12",
+        "coordinateSpace": "composite-route"
       },
       "durationSeconds": 65,
       "stops": [],
@@ -555,7 +649,13 @@
         "downloadedAt": "2026-10-25",
         "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Tagesgrenzen an der 28-Tage-Variante angenähert; persönliche Tagesrouten, Übernachtungen und Fotostopps noch abzugleichen.",
         "startPointIndex": 14571,
-        "endPointIndex": 16995
+        "endPointIndex": 16995,
+        "sourcePointRange": {
+          "startPointIndex": 14571,
+          "endPointIndex": 16995
+        },
+        "stageId": "tag-13",
+        "coordinateSpace": "composite-route"
       },
       "durationSeconds": 65,
       "stops": [],
@@ -580,7 +680,13 @@
         "downloadedAt": "2026-10-25",
         "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Tagesgrenzen an der 28-Tage-Variante angenähert; persönliche Tagesrouten, Übernachtungen und Fotostopps noch abzugleichen.",
         "startPointIndex": 16995,
-        "endPointIndex": 20103
+        "endPointIndex": 20103,
+        "sourcePointRange": {
+          "startPointIndex": 16995,
+          "endPointIndex": 20103
+        },
+        "stageId": "tag-14",
+        "coordinateSpace": "composite-route"
       },
       "durationSeconds": 65,
       "stops": [],
@@ -605,7 +711,13 @@
         "downloadedAt": "2026-10-25",
         "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Tagesgrenzen an der 28-Tage-Variante angenähert; persönliche Tagesrouten, Übernachtungen und Fotostopps noch abzugleichen.",
         "startPointIndex": 20103,
-        "endPointIndex": 23327
+        "endPointIndex": 23327,
+        "sourcePointRange": {
+          "startPointIndex": 20103,
+          "endPointIndex": 23327
+        },
+        "stageId": "tag-15",
+        "coordinateSpace": "composite-route"
       },
       "durationSeconds": 60,
       "stops": [],
@@ -630,7 +742,13 @@
         "downloadedAt": "2026-10-25",
         "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Tagesgrenzen an der 28-Tage-Variante angenähert; persönliche Tagesrouten, Übernachtungen und Fotostopps noch abzugleichen.",
         "startPointIndex": 23327,
-        "endPointIndex": 24505
+        "endPointIndex": 24505,
+        "sourcePointRange": {
+          "startPointIndex": 23327,
+          "endPointIndex": 24505
+        },
+        "stageId": "tag-16",
+        "coordinateSpace": "composite-route"
       },
       "durationSeconds": 45,
       "stops": [],
@@ -655,7 +773,13 @@
         "downloadedAt": "2026-10-25",
         "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Tagesgrenzen an der 28-Tage-Variante angenähert; persönliche Tagesrouten, Übernachtungen und Fotostopps noch abzugleichen.",
         "startPointIndex": 24505,
-        "endPointIndex": 25530
+        "endPointIndex": 25530,
+        "sourcePointRange": {
+          "startPointIndex": 24505,
+          "endPointIndex": 25530
+        },
+        "stageId": "tag-17",
+        "coordinateSpace": "composite-route"
       },
       "durationSeconds": 55,
       "stops": [],
@@ -680,7 +804,13 @@
         "downloadedAt": "2026-10-25",
         "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Tagesgrenzen an der 28-Tage-Variante angenähert; persönliche Tagesrouten, Übernachtungen und Fotostopps noch abzugleichen.",
         "startPointIndex": 25530,
-        "endPointIndex": 26537
+        "endPointIndex": 26537,
+        "sourcePointRange": {
+          "startPointIndex": 25530,
+          "endPointIndex": 26537
+        },
+        "stageId": "tag-18",
+        "coordinateSpace": "composite-route"
       },
       "durationSeconds": 85,
       "stops": [],
@@ -705,7 +835,13 @@
         "downloadedAt": "2026-10-25",
         "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Tagesgrenzen an der 28-Tage-Variante angenähert; persönliche Tagesrouten, Übernachtungen und Fotostopps noch abzugleichen.",
         "startPointIndex": 26537,
-        "endPointIndex": 27315
+        "endPointIndex": 27315,
+        "sourcePointRange": {
+          "startPointIndex": 26537,
+          "endPointIndex": 27315
+        },
+        "stageId": "tag-19",
+        "coordinateSpace": "composite-route"
       },
       "durationSeconds": 60,
       "stops": [],
@@ -730,7 +866,13 @@
         "downloadedAt": "2026-10-25",
         "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Tagesgrenzen an der 28-Tage-Variante angenähert; persönliche Tagesrouten, Übernachtungen und Fotostopps noch abzugleichen.",
         "startPointIndex": 27315,
-        "endPointIndex": 28229
+        "endPointIndex": 28229,
+        "sourcePointRange": {
+          "startPointIndex": 27315,
+          "endPointIndex": 28229
+        },
+        "stageId": "tag-20",
+        "coordinateSpace": "composite-route"
       },
       "durationSeconds": 65,
       "stops": [],
@@ -755,7 +897,13 @@
         "downloadedAt": "2026-10-25",
         "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Tagesgrenzen an der 28-Tage-Variante angenähert; persönliche Tagesrouten, Übernachtungen und Fotostopps noch abzugleichen.",
         "startPointIndex": 28229,
-        "endPointIndex": 28546
+        "endPointIndex": 28546,
+        "sourcePointRange": {
+          "startPointIndex": 28229,
+          "endPointIndex": 28546
+        },
+        "stageId": "tag-21",
+        "coordinateSpace": "composite-route"
       },
       "durationSeconds": 55,
       "stops": [],
@@ -780,7 +928,13 @@
         "downloadedAt": "2026-10-25",
         "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Tagesgrenzen an der 28-Tage-Variante angenähert; persönliche Tagesrouten, Übernachtungen und Fotostopps noch abzugleichen.",
         "startPointIndex": 28546,
-        "endPointIndex": 29373
+        "endPointIndex": 29373,
+        "sourcePointRange": {
+          "startPointIndex": 28546,
+          "endPointIndex": 29373
+        },
+        "stageId": "tag-22",
+        "coordinateSpace": "composite-route"
       },
       "durationSeconds": 55,
       "stops": [],
@@ -790,101 +944,209 @@
       "id": "tag-23",
       "day": 23,
       "date": null,
-      "title": "Belluno → Revine",
+      "title": "Belluno → Rifugio Col Visentin",
       "start": "Belluno",
-      "end": "Revine",
-      "description": "GPX-Referenzabschnitt Belluno nach Revine. Die veröffentlichte 28-Tage-Route wurde für deine 27 Tage in Tagesabschnitte geteilt; persönliche Tagesgrenzen, Schlafplätze und Fotostopps noch abgleichen.",
-      "overnight": null,
-      "routeFile": "routes/tag-23.geojson",
+      "end": "Rifugio Col Visentin",
+      "description": "Über Nevegal hinauf zum Rifugio Col Visentin. Dort hast du übernachtet. Rekonstruierte persönliche Routenvariante über den Gipfel.",
+      "overnight": "Rifugio Col Visentin",
+      "routeFile": "routes/variants/col-visentin/tag-23.geojson",
       "routeProvenance": {
         "kind": "reconstructed",
-        "source": "traumpfad-muenchen-venedig.gpx",
-        "url": "https://fastestknowntime.com/route/traumpfad-munchen-venedig-germany-austria-italy",
-        "author": "Björn Mußmann – Outdooractive Community",
-        "originalUrl": "https://www.outdooractive.com/r/104193538",
+        "variant": "col-visentin",
+        "source": "Deine Etappenangaben plus veröffentlichte GPX-Wegabschnitte",
+        "sources": [
+          {
+            "title": "24 Belluno – Rifugio Col Visentin",
+            "author": "Gerhard Stummvoll / deine-berge.de",
+            "url": "https://www.deine-berge.de/Touren/Wandern-Bergsteigen/55764/24-Belluno-Rif-Col-Visentin.html"
+          },
+          {
+            "title": "Pian delle Femene – Col Visentin",
+            "author": "Gianni Mistron / Tabaccomapp Community",
+            "url": "https://tabaccomapp-community.it/it/percorso/15889-pian-delle-femene-col-visentin/"
+          },
+          {
+            "title": "Wandern Europa: Von Belluno nach Revine",
+            "author": "Stefan Lenz und Eva-Maria Troidl / Planet Outdoor",
+            "url": "https://planetoutdoor.de/touren/wandern/wandern-europa-von-belluno-nach-revine"
+          },
+          {
+            "title": "Traumpfad München–Venedig GPX-Referenztrack",
+            "author": "Björn Mußmann – Outdooractive Community",
+            "url": "https://fastestknowntime.com/route/traumpfad-munchen-venedig-germany-austria-italy"
+          }
+        ],
         "downloadedAt": "2026-10-25",
-        "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Tagesgrenzen an der 28-Tage-Variante angenähert; persönliche Tagesrouten, Übernachtungen und Fotostopps noch abzugleichen.",
-        "startPointIndex": 29373,
-        "endPointIndex": 30822
+        "note": "Rekonstruierte Col-Visentin-Variante anhand deiner genannten Übernachtungsorte. Die Linienführung nutzt veröffentlichte GPX-Referenzen und bleibt eine Annäherung, keine persönliche GPS-Aufzeichnung. Tagesziel Col Visentin liegt nicht auf dem Referenz-GPX; der Zeitlinienanker sitzt am nächstgelegenen Punkt der Referenzlinie.",
+        "startPointIndex": 29374,
+        "endPointIndex": 29648,
+        "sourcePointRange": {
+          "startPointIndex": 29373,
+          "endPointIndex": 30171
+        },
+        "stageId": "tag-23",
+        "coordinateSpace": "composite-route"
       },
       "durationSeconds": 70,
       "stops": [],
-      "referenceSection": true
+      "referenceSection": false,
+      "routeVariant": "Col Visentin"
     },
     {
       "id": "tag-24",
       "day": 24,
       "date": null,
-      "title": "Revine → Ponte della Priula",
-      "start": "Revine",
-      "end": "Ponte della Priula",
-      "description": "GPX-Referenzabschnitt Revine nach Ponte della Priula. Die veröffentlichte 28-Tage-Route wurde für deine 27 Tage in Tagesabschnitte geteilt; persönliche Tagesgrenzen, Schlafplätze und Fotostopps noch abgleichen.",
-      "overnight": null,
-      "routeFile": "routes/tag-24.geojson",
+      "title": "Rifugio Col Visentin → Pieve di Soligo",
+      "start": "Rifugio Col Visentin",
+      "end": "Pieve di Soligo",
+      "description": "Am Folgetag über den Kamm nach Pian de le Femene und hinunter nach Revine; von dort weiter bis Pieve di Soligo. Revine war ein Zwischenort, kein Übernachtungsort.",
+      "overnight": "Pieve di Soligo",
+      "routeFile": "routes/variants/col-visentin/tag-24.geojson",
       "routeProvenance": {
         "kind": "reconstructed",
-        "source": "traumpfad-muenchen-venedig.gpx",
-        "url": "https://fastestknowntime.com/route/traumpfad-munchen-venedig-germany-austria-italy",
-        "author": "Björn Mußmann – Outdooractive Community",
-        "originalUrl": "https://www.outdooractive.com/r/104193538",
+        "variant": "col-visentin",
+        "source": "Deine Etappenangaben plus veröffentlichte GPX-Wegabschnitte",
+        "sources": [
+          {
+            "title": "24 Belluno – Rifugio Col Visentin",
+            "author": "Gerhard Stummvoll / deine-berge.de",
+            "url": "https://www.deine-berge.de/Touren/Wandern-Bergsteigen/55764/24-Belluno-Rif-Col-Visentin.html"
+          },
+          {
+            "title": "Pian delle Femene – Col Visentin",
+            "author": "Gianni Mistron / Tabaccomapp Community",
+            "url": "https://tabaccomapp-community.it/it/percorso/15889-pian-delle-femene-col-visentin/"
+          },
+          {
+            "title": "Wandern Europa: Von Belluno nach Revine",
+            "author": "Stefan Lenz und Eva-Maria Troidl / Planet Outdoor",
+            "url": "https://planetoutdoor.de/touren/wandern/wandern-europa-von-belluno-nach-revine"
+          },
+          {
+            "title": "Traumpfad München–Venedig GPX-Referenztrack",
+            "author": "Björn Mußmann – Outdooractive Community",
+            "url": "https://fastestknowntime.com/route/traumpfad-munchen-venedig-germany-austria-italy"
+          }
+        ],
         "downloadedAt": "2026-10-25",
-        "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Tagesgrenzen an der 28-Tage-Variante angenähert; persönliche Tagesrouten, Übernachtungen und Fotostopps noch abzugleichen.",
-        "startPointIndex": 30822,
-        "endPointIndex": 32276
+        "note": "Rekonstruierte Col-Visentin-Variante anhand deiner genannten Übernachtungsorte. Die Linienführung nutzt veröffentlichte GPX-Referenzen und bleibt eine Annäherung, keine persönliche GPS-Aufzeichnung. Die Kammroute Col Visentin–Pian de le Femene und der Abstieg nach Revine sind aus veröffentlichten GPX-Referenzen rekonstruiert.",
+        "startPointIndex": 29648,
+        "endPointIndex": 32267,
+        "sourcePointRange": {
+          "startPointIndex": 30171,
+          "endPointIndex": 31755
+        },
+        "stageId": "tag-24",
+        "coordinateSpace": "composite-route"
       },
       "durationSeconds": 75,
       "stops": [],
-      "referenceSection": true
+      "referenceSection": false,
+      "routeVariant": "Col Visentin"
     },
     {
       "id": "tag-25",
       "day": 25,
       "date": null,
-      "title": "Ponte della Priula → Bocca Callalta",
-      "start": "Ponte della Priula",
-      "end": "Bocca Callalta",
-      "description": "GPX-Referenzabschnitt Ponte della Priula nach Bocca Callalta. Die veröffentlichte 28-Tage-Route wurde für deine 27 Tage in Tagesabschnitte geteilt; persönliche Tagesgrenzen, Schlafplätze und Fotostopps noch abgleichen.",
-      "overnight": null,
-      "routeFile": "routes/tag-25.geojson",
+      "title": "Pieve di Soligo → Zenson di Piave",
+      "start": "Pieve di Soligo",
+      "end": "Zenson di Piave",
+      "description": "Von Pieve di Soligo über Ponte della Priula und Bocca Callalta bis Zenson di Piave. Übernachtung in Zenson di Piave.",
+      "overnight": "Zenson di Piave",
+      "routeFile": "routes/variants/col-visentin/tag-25.geojson",
       "routeProvenance": {
         "kind": "reconstructed",
-        "source": "traumpfad-muenchen-venedig.gpx",
-        "url": "https://fastestknowntime.com/route/traumpfad-munchen-venedig-germany-austria-italy",
-        "author": "Björn Mußmann – Outdooractive Community",
-        "originalUrl": "https://www.outdooractive.com/r/104193538",
+        "variant": "col-visentin",
+        "source": "Deine Etappenangaben plus veröffentlichte GPX-Wegabschnitte",
+        "sources": [
+          {
+            "title": "24 Belluno – Rifugio Col Visentin",
+            "author": "Gerhard Stummvoll / deine-berge.de",
+            "url": "https://www.deine-berge.de/Touren/Wandern-Bergsteigen/55764/24-Belluno-Rif-Col-Visentin.html"
+          },
+          {
+            "title": "Pian delle Femene – Col Visentin",
+            "author": "Gianni Mistron / Tabaccomapp Community",
+            "url": "https://tabaccomapp-community.it/it/percorso/15889-pian-delle-femene-col-visentin/"
+          },
+          {
+            "title": "Wandern Europa: Von Belluno nach Revine",
+            "author": "Stefan Lenz und Eva-Maria Troidl / Planet Outdoor",
+            "url": "https://planetoutdoor.de/touren/wandern/wandern-europa-von-belluno-nach-revine"
+          },
+          {
+            "title": "Traumpfad München–Venedig GPX-Referenztrack",
+            "author": "Björn Mußmann – Outdooractive Community",
+            "url": "https://fastestknowntime.com/route/traumpfad-munchen-venedig-germany-austria-italy"
+          }
+        ],
         "downloadedAt": "2026-10-25",
-        "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Tagesgrenzen an der 28-Tage-Variante angenähert; persönliche Tagesrouten, Übernachtungen und Fotostopps noch abzugleichen.",
-        "startPointIndex": 32276,
-        "endPointIndex": 33245
+        "note": "Rekonstruierte Col-Visentin-Variante anhand deiner genannten Übernachtungsorte. Die Linienführung nutzt veröffentlichte GPX-Referenzen und bleibt eine Annäherung, keine persönliche GPS-Aufzeichnung. Tagesgrenzen an deinen genannten Übernachtungsorten ausgerichtet; Weglinie zwischen den Orten aus dem veröffentlichten GPX-Referenztrack.",
+        "startPointIndex": 32267,
+        "endPointIndex": 34055,
+        "sourcePointRange": {
+          "startPointIndex": 31755,
+          "endPointIndex": 33545
+        },
+        "stageId": "tag-25",
+        "coordinateSpace": "composite-route"
       },
       "durationSeconds": 65,
       "stops": [],
-      "referenceSection": true
+      "referenceSection": false,
+      "routeVariant": "Col Visentin"
     },
     {
       "id": "tag-26",
       "day": 26,
       "date": null,
-      "title": "Bocca Callalta → Jesolo",
-      "start": "Bocca Callalta",
+      "title": "Zenson di Piave → Jesolo",
+      "start": "Zenson di Piave",
       "end": "Jesolo",
-      "description": "GPX-Referenzabschnitt Bocca Callalta nach Jesolo. Die veröffentlichte 28-Tage-Route wurde für deine 27 Tage in Tagesabschnitte geteilt; persönliche Tagesgrenzen, Schlafplätze und Fotostopps noch abgleichen.",
-      "overnight": null,
-      "routeFile": "routes/tag-26.geojson",
+      "description": "Von Zenson di Piave bis Jesolo; dort hast du übernachtet.",
+      "overnight": "Jesolo",
+      "routeFile": "routes/variants/col-visentin/tag-26.geojson",
       "routeProvenance": {
         "kind": "reconstructed",
-        "source": "traumpfad-muenchen-venedig.gpx",
-        "url": "https://fastestknowntime.com/route/traumpfad-munchen-venedig-germany-austria-italy",
-        "author": "Björn Mußmann – Outdooractive Community",
-        "originalUrl": "https://www.outdooractive.com/r/104193538",
+        "variant": "col-visentin",
+        "source": "Deine Etappenangaben plus veröffentlichte GPX-Wegabschnitte",
+        "sources": [
+          {
+            "title": "24 Belluno – Rifugio Col Visentin",
+            "author": "Gerhard Stummvoll / deine-berge.de",
+            "url": "https://www.deine-berge.de/Touren/Wandern-Bergsteigen/55764/24-Belluno-Rif-Col-Visentin.html"
+          },
+          {
+            "title": "Pian delle Femene – Col Visentin",
+            "author": "Gianni Mistron / Tabaccomapp Community",
+            "url": "https://tabaccomapp-community.it/it/percorso/15889-pian-delle-femene-col-visentin/"
+          },
+          {
+            "title": "Wandern Europa: Von Belluno nach Revine",
+            "author": "Stefan Lenz und Eva-Maria Troidl / Planet Outdoor",
+            "url": "https://planetoutdoor.de/touren/wandern/wandern-europa-von-belluno-nach-revine"
+          },
+          {
+            "title": "Traumpfad München–Venedig GPX-Referenztrack",
+            "author": "Björn Mußmann – Outdooractive Community",
+            "url": "https://fastestknowntime.com/route/traumpfad-munchen-venedig-germany-austria-italy"
+          }
+        ],
         "downloadedAt": "2026-10-25",
-        "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Tagesgrenzen an der 28-Tage-Variante angenähert; persönliche Tagesrouten, Übernachtungen und Fotostopps noch abzugleichen.",
-        "startPointIndex": 33245,
-        "endPointIndex": 34572
+        "note": "Rekonstruierte Col-Visentin-Variante anhand deiner genannten Übernachtungsorte. Die Linienführung nutzt veröffentlichte GPX-Referenzen und bleibt eine Annäherung, keine persönliche GPS-Aufzeichnung. Die Strecke folgt dem veröffentlichten GPX-Referenztrack ab Zenson di Piave.",
+        "startPointIndex": 34055,
+        "endPointIndex": 35081,
+        "sourcePointRange": {
+          "startPointIndex": 33545,
+          "endPointIndex": 34572
+        },
+        "stageId": "tag-26",
+        "coordinateSpace": "composite-route"
       },
       "durationSeconds": 80,
       "stops": [],
-      "referenceSection": true
+      "referenceSection": false,
+      "routeVariant": "Col Visentin"
     },
     {
       "id": "tag-27",
@@ -893,23 +1155,50 @@
       "title": "Jesolo → Markusplatz, Venedig",
       "start": "Jesolo",
       "end": "Markusplatz, Venedig",
-      "description": "GPX-Referenzabschnitt Jesolo nach Markusplatz, Venedig. Die veröffentlichte 28-Tage-Route wurde für deine 27 Tage in Tagesabschnitte geteilt; persönliche Tagesgrenzen, Schlafplätze und Fotostopps noch abgleichen.",
-      "overnight": null,
-      "routeFile": "routes/tag-27.geojson",
+      "description": "Von Jesolo mit der Fährüberfahrt nach Venedig. Übernachtung in Venedig.",
+      "overnight": "Venedig",
+      "routeFile": "routes/variants/col-visentin/tag-27.geojson",
       "routeProvenance": {
         "kind": "reconstructed",
-        "source": "traumpfad-muenchen-venedig.gpx",
-        "url": "https://fastestknowntime.com/route/traumpfad-munchen-venedig-germany-austria-italy",
-        "author": "Björn Mußmann – Outdooractive Community",
-        "originalUrl": "https://www.outdooractive.com/r/104193538",
+        "variant": "col-visentin",
+        "source": "Deine Etappenangaben plus veröffentlichte GPX-Wegabschnitte",
+        "sources": [
+          {
+            "title": "24 Belluno – Rifugio Col Visentin",
+            "author": "Gerhard Stummvoll / deine-berge.de",
+            "url": "https://www.deine-berge.de/Touren/Wandern-Bergsteigen/55764/24-Belluno-Rif-Col-Visentin.html"
+          },
+          {
+            "title": "Pian delle Femene – Col Visentin",
+            "author": "Gianni Mistron / Tabaccomapp Community",
+            "url": "https://tabaccomapp-community.it/it/percorso/15889-pian-delle-femene-col-visentin/"
+          },
+          {
+            "title": "Wandern Europa: Von Belluno nach Revine",
+            "author": "Stefan Lenz und Eva-Maria Troidl / Planet Outdoor",
+            "url": "https://planetoutdoor.de/touren/wandern/wandern-europa-von-belluno-nach-revine"
+          },
+          {
+            "title": "Traumpfad München–Venedig GPX-Referenztrack",
+            "author": "Björn Mußmann – Outdooractive Community",
+            "url": "https://fastestknowntime.com/route/traumpfad-munchen-venedig-germany-austria-italy"
+          }
+        ],
         "downloadedAt": "2026-10-25",
-        "note": "Unveränderter Ausschnitt des veröffentlichten GPX-Referenztracks. Tagesgrenzen an der 28-Tage-Variante angenähert; persönliche Tagesrouten, Übernachtungen und Fotostopps noch abzugleichen.",
-        "startPointIndex": 34572,
-        "endPointIndex": 35523
+        "note": "Rekonstruierte Col-Visentin-Variante anhand deiner genannten Übernachtungsorte. Die Linienführung nutzt veröffentlichte GPX-Referenzen und bleibt eine Annäherung, keine persönliche GPS-Aufzeichnung. Gemeinsamer Schlussabschnitt der Variante; die Linie bleibt die veröffentlichte GPX-Referenz.",
+        "startPointIndex": 35081,
+        "endPointIndex": 36032,
+        "sourcePointRange": {
+          "startPointIndex": 34572,
+          "endPointIndex": 35523
+        },
+        "stageId": "tag-27",
+        "coordinateSpace": "composite-route"
       },
       "durationSeconds": 70,
       "stops": [],
-      "referenceSection": true
+      "referenceSection": false,
+      "routeVariant": "Col Visentin"
     }
   ],
   "photos": [
@@ -989,6 +1278,42 @@
       "placeholder": true,
       "title": "Deine erste Woche",
       "caption": "Noch kein persönliches Foto importiert."
+    },
+    {
+      "id": "upload-203cada1-8182-4909-8b60-5a4a73d703c5",
+      "mediaType": "image",
+      "originalName": "9355C117-31CE-47B9-AEC2-D4C3D9B5FCE0.jpg",
+      "file": "assets/photos/203cada1-8182-4909-8b60-5a4a73d703c5.jpg",
+      "thumbnail": "assets/photos/203cada1-8182-4909-8b60-5a4a73d703c5-thumb.jpg",
+      "stageId": "gesamtstrecke",
+      "assignment": "manual",
+      "title": "9355C117-31CE-47B9-AEC2-D4C3D9B5FCE0",
+      "caption": "",
+      "placeholder": false
+    },
+    {
+      "id": "upload-295e003d-9fcd-4ab7-8808-3ae0d1214608",
+      "mediaType": "video",
+      "originalName": "IMG_8567.MOV",
+      "file": "assets/photos/295e003d-9fcd-4ab7-8808-3ae0d1214608.mov",
+      "thumbnail": "assets/photos/295e003d-9fcd-4ab7-8808-3ae0d1214608-thumb.jpg",
+      "stageId": "tag-01",
+      "assignment": "manual",
+      "title": "IMG_8567",
+      "caption": "",
+      "placeholder": false
+    },
+    {
+      "id": "upload-3fe0035f-8947-40f2-9cbf-f926f6ae9590",
+      "mediaType": "video",
+      "originalName": "IMG_8567.MOV",
+      "file": "assets/photos/3fe0035f-8947-40f2-9cbf-f926f6ae9590.mov",
+      "thumbnail": "assets/photos/3fe0035f-8947-40f2-9cbf-f926f6ae9590-thumb.jpg",
+      "stageId": "tag-01",
+      "assignment": "manual",
+      "title": "IMG_8567",
+      "caption": "",
+      "placeholder": false
     }
   ],
   "routeDownload": "data/routes/traumpfad-muenchen-venedig.gpx"

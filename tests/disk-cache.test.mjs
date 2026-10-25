@@ -230,7 +230,7 @@ test('the complete GPX plan uses observed satellite and raster-v1 DEM variants w
   const jobs = new TileJobs(cache, new URL('../app/data/routes/gesamtstrecke.geojson', import.meta.url).pathname);
   t.after(() => jobs.close());
   const plan = await jobs.plan(token);
-  assert.equal(plan.planned, 17014);
+  assert.equal(plan.planned, 17106);
   assert.equal(plan.variantsReady, true);
   assert.equal(plan.state, 'paused');
   assert.equal(calls, 2);

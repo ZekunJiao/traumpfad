@@ -32,6 +32,16 @@ test('a large tick stops at the first story and resume does not reopen it', () =
   p.play(); p.tick(9); assert.equal(p.state.status, 'stage-end'); assert.equal(p.state.progress, 1);
   p.play(); assert.equal(p.state.stageIndex, 1); assert.equal(p.state.status, 'playing');
 });
+
+test('single-route playback crosses bookmark boundaries and finishes at the route endpoint', () => {
+  const player = new TourPlayer([{ id: 'gesamt', isFullRoute: true, durationSeconds: 1200, stops: [] }]);
+  player.seek(.24); player.play(); player.tick(24);
+  assert.equal(player.state.status, 'playing');
+  assert.ok(Math.abs(player.state.progress - .26) < 1e-12);
+  player.tick(888);
+  assert.equal(player.state.status, 'stage-end');
+  assert.equal(player.state.progress, 1);
+});
 test('pause prevents movement and repeated play never doubles time', () => {
   const p = new TourPlayer(stages); p.play(); p.play(); p.tick(1); assert.equal(p.state.progress, .1);
   p.pause(); p.tick(3); assert.equal(p.state.progress, .1);

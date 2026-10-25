@@ -7,6 +7,7 @@ try {
   const journey = JSON.parse(await readFile(path.join(root, 'data/journey.json'), 'utf8'));
   const errors = validateJourney(journey);
   for (const s of journey.stages) {
+    if (s.isPointStage) continue;
     try { const data = JSON.parse(await readFile(path.join(root, 'data', s.routeFile), 'utf8')); const geo = data.type === 'Feature' ? data.geometry : data; if (geo.type !== 'LineString') throw new Error('LineString erwartet.'); prepareRoute(geo.coordinates); }
     catch (e) { errors.push(`${s.id}: ${e.message}`); }
   }

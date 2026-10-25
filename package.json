@@ -8,6 +8,7 @@
     "start": "node scripts/server.mjs",
     "import": "node scripts/import-photos.mjs",
     "route": "node scripts/import-route.mjs",
+    "compose-route": "node scripts/compose-route.mjs",
     "validate": "node scripts/validate.mjs",
     "test": "node --test tests/*.test.mjs"
   },

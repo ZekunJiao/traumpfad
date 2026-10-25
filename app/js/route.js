@@ -72,10 +72,16 @@ export function validateJourney(journey) {
   for (const p of photos || []) { if (!p.id || photoIds.has(p.id)) errors.push(`Doppelte oder fehlende Foto-ID: ${p.id}`); photoIds.add(p.id); }
   for (const s of stages) {
     if (!s.id || stageIds.has(s.id)) errors.push(`Doppelte oder fehlende Etappen-ID: ${s.id}`); stageIds.add(s.id);
-    if (!s.title || !s.routeFile) errors.push(`${s.id}: Titel oder Routendatei fehlt.`);
+    const pointStage = s.isPointStage === true;
+    if (!s.title || (!pointStage && !s.routeFile)) errors.push(`${s.id}: Titel oder Routendatei fehlt.`);
+    if (pointStage) {
+      const coordinates = s.location?.coordinates;
+      if (!Array.isArray(coordinates) || coordinates.length < 2 || !coordinates.slice(0, 2).every(Number.isFinite)
+        || Math.abs(coordinates[0]) > 180 || Math.abs(coordinates[1]) > 90) errors.push(`${s.id}: Ungültige Standpunktkoordinaten.`);
+    }
     if (!Array.isArray(s.stops)) errors.push(`${s.id}: Die Fotostoppliste fehlt.`);
     if (s.date && (!/^\d{4}-\d{2}-\d{2}$/.test(s.date) || Number.isNaN(Date.parse(s.date)) || new Date(s.date).toISOString().slice(0, 10) !== s.date)) errors.push(`${s.id}: Ungültiges Datum.`);
-    if (!Number.isFinite(s.durationSeconds) || s.durationSeconds <= 0) errors.push(`${s.id}: Die Flugdauer muss positiv sein.`);
+    if (!pointStage && (!Number.isFinite(s.durationSeconds) || s.durationSeconds <= 0)) errors.push(`${s.id}: Die Flugdauer muss positiv sein.`);
     for (const stop of s.stops || []) {
       if (!stop.id || stopIds.has(stop.id)) errors.push(`Doppelte oder fehlende Fotostopp-ID: ${stop.id}`); stopIds.add(stop.id);
       if (!Number.isFinite(stop.progress) || stop.progress < 0 || stop.progress > 1) errors.push(`${stop.id}: Position muss zwischen 0 und 1 liegen.`);

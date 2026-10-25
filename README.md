@@ -35,7 +35,7 @@ Die zusätzlichen Kacheln im Arbeitsspeicher werden auf bis zu 1.024 Einträge p
 
 Unter **⚙ → Karten auf diesem Mac speichern** werden Belegung, gespeicherte Kacheln und lokale Treffer angezeigt. Der zusätzliche Cache liegt bei diesem Projekt unter `/Users/zek/Documents/ChatGPT/Traumpfad/.cache/map-tiles/`; Worktrees ermitteln denselben Ordner über das gemeinsame Git-Verzeichnis. Für andere Installationen wird entsprechend das Hauptprojekt verwendet. `TRAUMPFAD_TILE_CACHE_DIR` kann einen anderen Ordner vorgeben. Bilddateien und SQLite-Index bleiben außerhalb von Git. Node 24 wird für `node:sqlite` benötigt.
 
-**Route vorbereiten: Umfang berechnen** erzeugt zunächst nur einen Plan aus der vollständigen GPX-Datei: 20 km auf jeder Routenseite, Zoom 0–14, überlappende Gebiete dedupliziert. Um Lücken zwischen GPX-Punkten zu vermeiden, enthält die geometrische Abdeckung einen konservativen Rand von etwa 500 Metern. Aktuell ergeben sich 8.507 Kachelkoordinaten je Quelle, insgesamt 17.014 Bilder. Die Schätzung setzt die Bildvarianten voraus, die beim normalen Laden der Satellitenkarte tatsächlich beobachtet wurden. Deshalb zuerst Satellitenkarte und Gelände öffnen. Für die Planung werden keine Kartenbilder von Mapbox angefordert.
+**Route vorbereiten: Umfang berechnen** erzeugt zunächst nur einen Plan aus der durchgehenden Gesamtlinie: 20 km auf jeder Routenseite, Zoom 0–14, überlappende Gebiete dedupliziert. Um Lücken zwischen Trackpunkten zu vermeiden, enthält die geometrische Abdeckung einen konservativen Rand von etwa 500 Metern. Aktuell ergeben sich 8.553 Kachelkoordinaten je Quelle, insgesamt 17.106 Bilder. Die Schätzung setzt die Bildvarianten voraus, die beim normalen Laden der Satellitenkarte tatsächlich beobachtet wurden. Deshalb zuerst Satellitenkarte und Gelände öffnen. Für die Planung werden keine Kartenbilder von Mapbox angefordert.
 
 Der Vorabdownload bleibt ohne bestätigte kostenlose Restkontingente gesperrt. In den aufklappbaren Einstellungen sind die im Mapbox-Konto gerade geprüften Restkontingente für Satellitenbilder, Gelände und beide zusammen einzutragen. Bei geteilten API-Kontingenten darf die Gesamtmenge nicht doppelt gezählt werden. Die App kann diese Kontostände nicht selbst auslesen. 20 % bleiben als Reserve frei; andere Apps/Geräte müssen das Konto während des Downloads nicht zusätzlich nutzen. Jede tatsächlich gestartete Vorab-Anfrage, einschließlich Fehlern und Revalidierungen, verbraucht eine Budgeteinheit. Echte Kostenfreiheit setzt korrekte aktuelle Kontowerte voraus; die App kann fremde Kontonutzung nicht verhindern.
 
@@ -49,23 +49,25 @@ Dies ist **keine vollständige Offline-Karte**. Kartenstil, Schriften, Symbole, 
 
 ### Kamera beim Start
 
-Beim Klick auf eine Etappe fliegt die Karte in etwa 2,6 Sekunden zu deren Ausgangspunkt. **Die Reise beginnen** und **▶** führen anschließend mit einem etwa 2,2 Sekunden langen Übergang aus der sichtbaren Kameraposition in die Vogelperspektive des Routenflugs. Während des Anflugs und beim Warten auf benötigte Höhendaten bleibt der Routenfortschritt stehen. Pause hält auch einen laufenden Anflug an; Fortsetzen beginnt aus der zuletzt sichtbaren Kameraposition. Schnelle Etappenwechsel verwerfen die vorherige Kamerabewegung. Die Systemeinstellung für reduzierte Bewegung wird berücksichtigt.
+Ein Klick auf einen Tag in der Seitenleiste springt pausiert zum Start dieser Etappe und fokussiert die Kartenposition. **Die Reise beginnen** und **▶** starten die durchgehende Route von München bis Venedig. Der Flug hält an Fotostopps, läuft aber über alle Tagesgrenzen hinweg. Während eines Kartenanflugs und beim Warten auf benötigte Höhendaten bleibt der Routenfortschritt stehen. Die Systemeinstellung für reduzierte Bewegung wird berücksichtigt.
 
 Neue Konten ohne Zahlungsmethode haben einen eingeschränkten Testzugang. Laut [Mapbox-Dokumentation](https://docs.mapbox.com/accounts/guides/signup/#limits) ist die Raster Tiles API für unsere Satellitenbilder dort nicht verfügbar, auch bei gültigem Schlüssel und bestätigter E-Mail-Adresse. Für diesen Zugriff muss in der [Mapbox-Konsole](https://console.mapbox.com/) eine Zahlungsmethode hinterlegt werden. Dabei gelten weiterhin monatliche Freikontingente; Nutzung darüber hinaus wird berechnet. Falls beim Wechsel der Token erneuert wird, muss auch der Schlüssel in der App ersetzt werden. Die App verändert keine Kontofreigaben oder Zahlungsdaten. HTTP 429 kann außerdem auf ein Anfragelimit hinweisen und beweist allein keine Kontosperre. Siehe auch [Demo-Zugriff bei Mapbox](https://docs.mapbox.com/accounts/guides/demo-access/).
 
 ## Stand der Inhalte
 
-Enthalten sind die **GPX-Gesamtstrecke München–Venedig und alle 27 Tagesetappen** in vier Wochenkapiteln. Zehn Fotostopps und elf Bildplätze sind weiterhin ausdrücklich Beispiele. Es wurden keine eigenen Fotos, Reisedaten oder Erlebnisse erfunden. Die Tagesabschnitte folgen einem veröffentlichten Referenztrack und müssen noch mit deiner tatsächlich begangenen Linie abgeglichen werden.
+Die App zeigt und spielt **eine durchgehende Route von München bis zum Markusplatz in Venedig**. Die 27 Tage bleiben als Lesezeichen, Etappenbeschreibungen und Schlafortmarker in vier Wochenkapiteln erhalten. Die Gesamtlinie wird aus den Tagesrouten zusammengesetzt; die Tagesdateien bleiben ihre Quellen. Zwischen Tag 22 und Tag 23 schließt ein direkter Abschnitt von etwa 172 Metern die Lücke. Die Col-Visentin-Variante ist aus deinen Angaben und veröffentlichten GPX-Referenzen rekonstruiert, keine persönliche GPS-Aufzeichnung.
 
 Die 28-Tage-Variante ist für deine 27 Reisetage angepasst: Fedaia–Alleghe und Alleghe–Rifugio Tissi sind als eine Tagesetappe Fedaia–Rifugio Tissi zusammengefasst; eine Übernachtung in Alleghe ist nicht eingetragen. Der Linienverlauf dieser Etappe stammt weiterhin aus dem Referenztrack und ist keine bestätigte Aufzeichnung deiner direkten Variante. Die Etappe zum Rifugio 7° Alpini ist als Schiara-Überquerung mit Klettersteig markiert; auch deren Linie ist eine Referenz.
 
 ### GPX-Referenzroute
 
-Die unveränderte Quelldatei liegt unter `app/data/routes/traumpfad-muenchen-venedig.gpx`, die für die Karte konvertierte Gesamtstrecke unter `app/data/routes/gesamtstrecke.geojson`. Download auch in **⚙ → Die GPX-Route**. Der Gesamtflug dauert bei einfacher Geschwindigkeit 20 Minuten; der Schieberegler erlaubt direkte Sprünge.
+Die unveränderte veröffentlichte GPX-Quelle liegt unter `app/data/routes/traumpfad-muenchen-venedig.gpx`. Die aktive Liniengeometrie unter `app/data/routes/gesamtstrecke.geojson` wird aus den 27 Tagesrouten gebildet. Der Download unter **⚙ → Die GPX-Route** lädt die veröffentlichte Quelldatei. Der Gesamtflug dauert bei einfacher Geschwindigkeit 20 Minuten; der Fortschrittsregler läuft über die ganze Route und die Tagesgrenzen sind darauf markiert.
 
 Quelle: [Fastest Known Time – Traumpfad München–Venedig](https://fastestknowntime.com/route/traumpfad-munchen-venedig-germany-austria-italy), Datei „traumpfad muenchen venedig -komplett-.gpx“. Ursprünglicher Autor laut GPX: Björn Mußmann – Outdooractive Community, [Originaltour 104193538](https://www.outdooractive.com/r/104193538), Stand 23.08.2018, heruntergeladen am 25.10.2026. 35.524 Punkte einschließlich Höhenangaben, ca. 545 km. Es ist ein veröffentlichter Referenztrack mit Varianten und Fährüberfahrt, keine persönliche Aufzeichnung und keine Zusicherung aktueller Begehbarkeit.
 
-Die 27 Tagesabschnitte sind aufeinanderfolgende Ausschnitte dieser Punktfolge. Ihre Grenzen wurden anhand der veröffentlichten 28-Tage-Abfolge und erkennbarer Etappenorte angenähert; die Tagesgrenzen sind nicht persönlich bestätigt. Die Linie ist deshalb ein Referenzverlauf und keine metergenaue Aufzeichnung deiner Wanderung. Der siebte Abschnitt endet in Wattens: Die veröffentlichte Variante passiert Hall nicht direkt; eine erfundene Verbindung nach Hall wurde vermieden. Die ursprünglichen schematischen Dateien sind unter `.cache/routes-before-gpx/` gesichert.
+Die Tagesabschnitte 1–22 sind Ausschnitte des veröffentlichten GPX-Referenztracks; ihre Tagesgrenzen wurden anhand der veröffentlichten 28-Tage-Abfolge und erkennbarer Etappenorte angenähert. Die Tage 23–27 bilden deine Col-Visentin-Variante: Belluno–Rifugio Col Visentin; am Folgetag über Revine nach Pieve di Soligo; danach über Ponte della Priula und Bocca Callalta nach Zenson di Piave, weiter nach Jesolo und Venedig. Die Gipfel- und Kammabschnitte sind mit veröffentlichten Weg-GPX-Daten rekonstruiert; die restlichen Linien greifen auf den vorhandenen Referenztrack zurück. Tagesgrenzen und Übergänge sind Annäherungen, keine persönliche GPS-Aufzeichnung. Tag 7 endet in Wattens: Die veröffentlichte Variante passiert Hall nicht direkt; eine erfundene Verbindung nach Hall wurde vermieden. Die ursprünglichen schematischen Dateien sind unter `.cache/routes-before-gpx/` gesichert.
+
+Quellen der Col-Visentin-Variante: [Belluno–Rifugio Col Visentin](https://www.deine-berge.de/Touren/Wandern-Bergsteigen/55764/24-Belluno-Rif-Col-Visentin.html), [Pian delle Femene–Col Visentin](https://tabaccomapp-community.it/it/percorso/15889-pian-delle-femene-col-visentin/) und [Belluno–Revine](https://planetoutdoor.de/touren/wandern/wandern-europa-von-belluno-nach-revine).
 
 Die Punktabstände wurden geprüft. Der größte Abstand beträgt rund 1,36 km nahe Sottoguda (11.905360 / 46.441406 bis 11.906199 / 46.429194); dieser Teil ist im Original nur grob beschrieben und wird unverändert übernommen. Die Linie wird dort nicht als metergenauer Weg ausgegeben. Die Fährstrecke nach Venedig bleibt Bestandteil der Quelle. Fotostopps bleiben ausdrücklich Beispiele an ungefähren Positionen.
 
@@ -84,7 +86,7 @@ Ein zweiter geprüfter Download vom [GPS Wanderatlas](https://www.ich-geh-wander
 | Tagesgalerie | „Tagesgalerie öffnen“ oder `G` |
 | Dialog schließen | Kreuz oder `Escape` |
 | Vollbild | Schaltfläche oben rechts oder `F` |
-| Etappe überspringen | Etappe links auswählen |
+| Zu einer Tagesetappe springen | Tag links auswählen; die Route pausiert an dessen Startpunkt |
 | Frei navigieren | Ziehen pausiert und wechselt ins Erkunden. Zoomen läuft während des Flugs weiter; „Präsentieren“ kehrt zum gespeicherten Stand zurück |
 | Karte zoomen | Mausrad / Trackpad scrollen oder Doppelklick; Umschalt + Doppelklick zoomt heraus |
 | Kamerahöhe ändern | Shift halten und mit linker oder rechter Maustaste hoch/runter ziehen. Der Flug läuft weiter. |
@@ -92,7 +94,7 @@ Ein zweiter geprüfter Download vom [GPS Wanderatlas](https://www.ich-geh-wander
 | Während des Flugs umsehen | Rechte Maustaste halten und ziehen: links/rechts dreht den Blick, hoch/runter neigt ihn. Der Flug folgt weiter der Route. |
 
 Die Maussteuerung gilt für die verbundene Mapbox-Karte. Verschieben mit der linken Maustaste pausiert den Flug und wechselt ins Erkunden. Die Bewegung ist auf 15 Prozent gedämpft und bei großer Höhe auf 30 Meter pro Pixel begrenzt. Drehung, Kamerahöhe und Zoom reagieren ebenfalls langsamer; Mausrad und Trackpad zoomen in kleineren Schritten, ebenso Doppelklick und die +/−-Schaltflächen. Zoomen verändert den Kameraabstand, ohne den Flug zu unterbrechen. Die rechte Maustaste (am Mac auch Ctrl + linke Maustaste) steuert die Blickrichtung: Während der Präsentation folgt die Kameraposition weiter der Route, die Wiedergabe läuft weiter. Die Blickrichtung bleibt relativ zur Route erhalten, auch in Kurven. „Präsentieren“ führt die Kamera zum gespeicherten Stand zurück; ▶ setzt den Flug fort. Automatische Kamerafahrten lösen diesen Wechsel nicht aus.
-An Fotostopps und am Ende einer Etappe pausiert der Flug. Kleine Fotovorschauen schweben an den Fotostopps über der Karte. Nach dem Anflug wächst ein geladenes und dekodiertes Bild aus seiner Vorschau zur großen Ansicht (4800 ms), während die Kamera zunächst auf Detailzoom 19 und anschließend bis ungefähr 10 Meter über das geladene Gelände zufliegt. Fehlen Höhendaten, bleibt sie beim sicheren Mapbox-Anflug. Mit „Weiter auf dem Weg“, ▶ oder Leertaste schrumpft es zur Vorschau zurück (650 ms), die Kamera kehrt zur vorherigen Perspektive zurück und der Flug geht weiter. Weitere Bilder werden einzeln durchgeblättert. Die Einstellung für reduzierte Bewegung wird berücksichtigt. Die Tagesgalerie verwendet weiterhin ihre eigene Bildansicht. Nach dem letzten Tag startet Play die Reise erneut. Beim Wechsel in einen anderen Browser-Tab wird der Flug pausiert. Im Vollbild bleiben die Quellenangaben sichtbar. Auf schmalen Bildschirmen steht die Etappenliste unter der Karte.
+An Fotostopps pausiert der Flug. Kleine Fotovorschauen schweben an den Fotostopps über der Karte. Nach dem Anflug wächst ein geladenes und dekodiertes Bild aus seiner Vorschau zur großen Ansicht (4800 ms), während die Kamera zunächst auf Detailzoom 19 und anschließend bis ungefähr 10 Meter über das geladene Gelände zufliegt. Fehlen Höhendaten, bleibt sie beim sicheren Mapbox-Anflug. Mit „Weiter auf dem Weg“, ▶ oder Leertaste schrumpft es zur Vorschau zurück (650 ms), die Kamera kehrt zur vorherigen Perspektive zurück und der Flug geht weiter. Weitere Bilder werden einzeln durchgeblättert. Die Einstellung für reduzierte Bewegung wird berücksichtigt. Die Tagesgalerie verwendet weiterhin ihre eigene Bildansicht. Am Markusplatz startet Play die Reise erneut. Beim Wechsel in einen anderen Browser-Tab wird der Flug pausiert. Im Vollbild bleiben die Quellenangaben sichtbar. Auf schmalen Bildschirmen steht die Etappenliste unter der Karte.
 
 ## Eigene Fotos importieren
 
@@ -127,6 +129,8 @@ Starte die App mit `npm start` und klicke oben auf **Bearbeiten**. Wähle eine E
 
 Über **Bilder oder Videos hinzufügen** kannst du Dateien auswählen oder sie direkt in das gestrichelte Feld ziehen. Mehrere Dateien auf einmal werden an den ausgewählten Fotopunkt gehängt, erscheinen dort der Reihe nach und zusätzlich in der Tagesgalerie. JPEG, PNG, WebP, AVIF, GIF sowie MP4, WebM und MOV bis 200 MB pro Datei werden unterstützt. Eine Collage kannst du als Bilddatei hochladen. Mit **Änderungen speichern** bleiben die Inhalte in `app/data/journey.json` und `app/assets/photos/` auf diesem Mac. Es gibt keine Übertragung an einen externen Dienst.
 
+Der feste Fotopunkt **Tag 00 · Gotzinger Platz** ist ein eigenes Lesezeichen neben den 27 Tagesetappen. Er lässt sich auf der Karte fokussieren und hat eine eigene Galerie. Der Standpunkt ist keine zusätzliche Route und kann nicht verschoben werden; Bilder lassen sich ihm im Bearbeiten-Dialog zuordnen.
+
 Für viele Originalfotos mit automatischer Tageszuordnung bleibt der unten beschriebene Import über `Material/fotos-originale/` verfügbar.
 
 Die zentrale Inhaltsdatei ist `app/data/journey.json`. Sie verbindet:
@@ -136,7 +140,13 @@ Die zentrale Inhaltsdatei ist `app/data/journey.json`. Sie verbindet:
 - `photos`: ID, Webdatei, Vorschaubild, Aufnahmezeit, `stageId`, Titel, Bildunterschrift und optionaler Bildnachweis.
 - `stories`: Motivation und Vorbereitung sowie Ankunft und Rückblick. Abschnitte können über `photoId` ein eigenes Bild zeigen.
 
-Die Reihenfolge der `stages` bestimmt den Reiseablauf. Neue Etappen erhalten eindeutige IDs (zum Beispiel `tag-08`), eine `routeFile` unter `routes/`, eine positive `durationSeconds` und ein `stops`-Array. Ordne sie außerdem einem Kapitel zu. Datumsangaben können bis zur Klärung `null` bleiben. Erst wenn die Inhalte persönlich überprüft sind, `demo` auf `false` setzen.
+Die Tagesdatensätze in `stages` halten Etappen, Schlaforte und lokale Fotopunktpositionen fest. Für die Wiedergabe wird daraus zusammen mit den Tageslinien eine Gesamtlinie aufgebaut. Nach dem Austausch oder Ergänzen einer Tagesroute diese Linie neu erzeugen:
+
+```sh
+npm run compose-route
+```
+
+Neue Tagesetappen erhalten eindeutige IDs, eine `routeFile` unter `routes/`, eine positive `durationSeconds` und ein `stops`-Array und werden einem Kapitel zugeordnet. Datumsangaben können bis zur Klärung `null` bleiben. Erst wenn die Inhalte persönlich überprüft sind, `demo` auf `false` setzen.
 
 ### Eine echte Route einlesen
 
@@ -149,6 +159,8 @@ npm run route -- --stage tag-01 --file "/absoluter/Pfad/etappe-01.gpx" --kind re
 Unterstützt werden GPX mit einem zusammenhängenden Track oder einer Route sowie GeoJSON als einzelner `LineString` beziehungsweise Feature mit `LineString`. Mehrere getrennte GPX-Abschnitte werden abgelehnt, damit keine erfundene Verbindung entsteht. Start/Ziel allein reichen nicht für einen tatsächlichen Wandertrack. Eine passende Wegführung muss recherchiert und mit deinen Varianten abgeglichen werden.
 
 Nach dem Austausch einer Route alle zugehörigen Fotostopps prüfen: Ihre Position wird als Anteil der **Streckenlänge** gespeichert. Eine veränderte Route kann diese Position verschieben.
+
+Die Tagespositionen werden beim Zusammensetzen auf die Gesamtlinie übertragen; lokale Fotopunktanteile pro Tag bleiben in `journey.json` gespeichert.
 
 ### Einen Fotostopp mit eigenen Bildern verbinden
 
