@@ -1,0 +1,20 @@
+{
+  "name": "traumpfad",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Eine lokale, interaktive Reisepräsentation über die Alpen.",
+  "scripts": {
+    "start": "node scripts/server.mjs",
+    "import": "node scripts/import-photos.mjs",
+    "route": "node scripts/import-route.mjs",
+    "validate": "node scripts/validate.mjs",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "engines": { "node": ">=22" },
+  "dependencies": {
+    "exiftool-vendored": "^34.0.0",
+    "fast-xml-parser": "^5.3.0",
+    "mapbox-gl": "^3.16.0"
+  }
+}

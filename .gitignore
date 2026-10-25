@@ -1,0 +1,10 @@
+.DS_Store
+node_modules/
+.env
+Material/fotos-originale/*
+!Material/fotos-originale/.gitkeep
+material/fotos-originale/*
+app/assets/photos/*
+!app/assets/photos/.gitkeep
+Material/import-report.json
+.cache/

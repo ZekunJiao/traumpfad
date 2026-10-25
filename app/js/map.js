@@ -1,0 +1,251 @@
+import { bearing, clamp, destination, feature, pointAt, sliceRoute } from './route.js';
+import { describeMapError } from './map-error.js';
+import { createTileRequestGate } from './tile-request-gate.js';
+import { interpolateCamera } from './camera-transition.js';
+
+const SVG = 'http://www.w3.org/2000/svg';
+function svgNode(tag, attributes, text) {
+  const node = document.createElementNS(SVG, tag);
+  for (const [key, value] of Object.entries(attributes || {})) node.setAttribute(key, value);
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+export class JourneyMap {
+  constructor({ stages, routes, onStop, onStatus }) {
+    Object.assign(this, { stages, routes, onStop, onStatus });
+    this.map = null; this.ready = false; this.stageIndex = 0; this.progress = 0; this.markers = []; this.exploring = false;
+    this.container = document.getElementById('schematic');
+    this.buildSchematic();
+    this.resizeObserver = new ResizeObserver(() => this.buildSchematic());
+    this.resizeObserver.observe(this.container);
+  }
+  buildSchematic() {
+    this.container.replaceChildren();
+    const width = Math.max(320, this.container.clientWidth), height = Math.max(590, this.container.clientHeight);
+    const svg = svgNode('svg', { viewBox: `0 0 ${width} ${height}`, role: 'img', 'aria-label': 'Schematischer Verlauf der geladenen Etappen. Keine Geländekarte.' });
+    const relief = svgNode('g', { transform: `translate(${width * .78} ${height * .65}) rotate(-29)`, fill: 'none', stroke: '#b6c598', 'stroke-width': '.9', opacity: '.12' });
+    for (let i = 0; i < 24; i++) relief.append(svgNode('ellipse', { cx: Math.sin(i * .4) * 20, cy: i * 1.8, rx: 45 + i * 19, ry: 30 + i * 10 }));
+    svg.append(relief);
+    const relief2 = svgNode('g', { transform: `translate(${width * .4} ${height * .85}) rotate(25)`, fill: 'none', stroke: '#b6c598', 'stroke-width': '.7', opacity: '.08' });
+    for (let i = 0; i < 15; i++) relief2.append(svgNode('ellipse', { cx: 0, cy: 0, rx: 60 + i * 19, ry: 30 + i * 12 }));
+    svg.append(relief2);
+    const points = this.routes.flatMap(r => r.points);
+    const minLon = Math.min(...points.map(p => p[0])), maxLon = Math.max(...points.map(p => p[0]));
+    const minLat = Math.min(...points.map(p => p[1])), maxLat = Math.max(...points.map(p => p[1]));
+    this.project = p => [width * .54 + (p[0] - minLon) / Math.max(.01, maxLon - minLon) * width * .22, height * .15 + (maxLat - p[1]) / Math.max(.01, maxLat - minLat) * (height * .61 - 25)];
+    this.schemaPaths = [];
+    const line = points => points.map((p, i) => `${i ? 'L' : 'M'}${this.project(p).join(',')}`).join(' ');
+    this.schemaLine = line;
+    this.routes.forEach((route, i) => {
+      const path = svgNode('path', { d: line(route.points), fill: 'none', stroke: '#e9ebce', 'stroke-width': '2', opacity: '.28', 'stroke-linejoin': 'round', 'stroke-linecap': 'round' });
+      this.schemaPaths.push(path); svg.append(path);
+      const p = this.project(route.points[0]);
+      svg.append(svgNode('circle', { cx: p[0], cy: p[1], r: 4, fill: '#dcdcc0', opacity: '.7' }));
+      svg.append(svgNode('text', { x: p[0] + 12, y: p[1] + 4, class: 'schema-label' }, this.stages[i].start));
+    });
+    const end = this.project(points.at(-1));
+    svg.append(svgNode('circle', { cx: end[0], cy: end[1], r: 4, fill: '#dcdcc0' }));
+    svg.append(svgNode('text', { x: end[0] + 12, y: end[1] + 4, class: 'schema-label' }, this.stages.at(-1).end));
+    this.schemaTravelled = svgNode('path', { fill: 'none', stroke: '#e8c183', 'stroke-width': '3.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
+    this.schemaDot = svgNode('circle', { r: 6, fill: '#f2d89b', stroke: '#314b3a', 'stroke-width': 3 });
+    svg.append(this.schemaTravelled, this.schemaDot);
+    this.container.append(svg); this.updateSchema();
+  }
+  updateSchema() {
+    this.schemaPaths.forEach((path, i) => path.setAttribute('opacity', i === this.stageIndex ? '.7' : '.2'));
+    const route = this.routes[this.stageIndex], p = this.project(pointAt(route, this.progress));
+    this.schemaTravelled.setAttribute('d', this.schemaLine(sliceRoute(route, this.progress)));
+    this.schemaDot.setAttribute('cx', p[0]); this.schemaDot.setAttribute('cy', p[1]);
+  }
+  setToken(token) {
+    this.cancelCameraMotion();
+    clearTimeout(this.loadTimer);
+    this.markers.forEach(m => m.remove()); this.markers = [];
+    this.map?.remove(); this.map = null; this.ready = false; this.lastLoadError = null; this.waitingForTerrain = false; this.appliedExplore = null; this.container.hidden = false;
+    if (!token) { this.onStatus('schematic'); return; }
+    if (!window.mapboxgl?.supported()) { this.onStatus('error', '3D-Karten werden von diesem Browser nicht unterstützt. Die Vorschau und Galerien bleiben verfügbar.'); return; }
+    this.onStatus('loading');
+    try {
+      // Keep satellite/DEM bursts small during camera moves on this local presentation.
+      window.mapboxgl.maxParallelImageRequests = 4;
+      const map = new window.mapboxgl.Map({ container: 'map', accessToken: token, style: 'mapbox://styles/mapbox/standard-satellite', center: [11.48, 47.7], zoom: 8, pitch: 55, bearing: 0, antialias: true, attributionControl: true, minTileCacheSize: 64, maxTileCacheSize: 256, transformRequest: createTileRequestGate() });
+      this.map = map;
+      map.addControl(new window.mapboxgl.NavigationControl({ showCompass: true }), 'bottom-right');
+      map.on('load', () => {
+        if (map !== this.map) return;
+        clearTimeout(this.loadTimer);
+        try {
+          map.addSource('journey-dem', { type: 'raster-dem', url: 'mapbox://mapbox.mapbox-terrain-dem-v1', tileSize: 512, maxzoom: 14 });
+          map.setTerrain({ source: 'journey-dem', exaggeration: 1 });
+          map.addSource('journey-all', { type: 'geojson', data: { type: 'FeatureCollection', features: this.routes.map(r => feature(r.points)) } });
+          map.addLayer({ id: 'journey-all', type: 'line', slot: 'middle', source: 'journey-all', paint: { 'line-color': '#fff4d4', 'line-width': 3, 'line-opacity': .4 }, layout: { 'line-join': 'round', 'line-cap': 'round' } });
+          map.addSource('journey-active', { type: 'geojson', data: feature(this.routes[this.stageIndex].points) });
+          map.addLayer({ id: 'journey-active', type: 'line', slot: 'middle', source: 'journey-active', paint: { 'line-color': '#f2c578', 'line-width': 4, 'line-opacity': .45 }, layout: { 'line-join': 'round', 'line-cap': 'round' } });
+          map.addSource('journey-travelled', { type: 'geojson', data: feature(sliceRoute(this.routes[this.stageIndex], this.progress)) });
+          map.addLayer({ id: 'journey-travelled', type: 'line', slot: 'middle', source: 'journey-travelled', paint: { 'line-color': '#ffd990', 'line-width': 5 }, layout: { 'line-join': 'round', 'line-cap': 'round' } });
+          this.ready = true; this.container.hidden = true; this.onStatus('ready'); this.setStage(this.stageIndex); this.setExplore(this.exploring);
+        } catch (error) { this.fail('Die 3D-Karte konnte nicht aufgebaut werden. ' + error.message); }
+      });
+      map.on('error', event => {
+        if (map !== this.map) return;
+        const diagnostic = describeMapError(event.error);
+        if (this.lastLoadError !== diagnostic.message) {
+          let tokenMatches = null;
+          try { const supplied = new URL(event.error.url).searchParams.get('access_token'); tokenMatches = supplied ? supplied === token : null; } catch { /* Some errors have no URL. */ }
+          let sku = '';
+          try { sku = new URL(event.error.url).searchParams.get('sku') || ''; } catch { /* No request URL. */ }
+          this.lastFailedRequest = { resource: diagnostic.resource, sku };
+          console.warn('Traumpfad-Karte:', JSON.stringify({ status: diagnostic.status, resource: diagnostic.resource, sku, tokenMatches, message: diagnostic.message }));
+        }
+        this.lastLoadError = diagnostic.message;
+        if ([401, 402, 403, 429].includes(diagnostic.status)) this.fail(diagnostic.message);
+        else if (!this.ready) this.onStatus('error', diagnostic.message);
+      });
+      this.loadTimer = setTimeout(() => { if (!this.ready && map === this.map && !this.lastLoadError) this.onStatus('loading', 'Die Karte lädt noch. Du kannst die lokale Vorschau und Galerien bereits verwenden.'); }, 12000);
+    } catch (error) { this.fail('Die Karte konnte nicht gestartet werden. ' + error.message); }
+  }
+  fail(message) {
+    this.cancelCameraMotion();
+    clearTimeout(this.loadTimer);
+    const failedMap = this.map;
+    // Detach first: errors from requests already in flight must not replace the root cause.
+    this.map = null; this.ready = false; this.waitingForTerrain = false; this.appliedExplore = null;
+    this.markers.forEach(marker => marker.remove()); this.markers = [];
+    failedMap?.remove();
+    this.container.hidden = false; this.onStatus('error', message);
+  }
+  setStage(index) {
+    this.cancelCameraMotion();
+    this.stageIndex = index; this.progress = 0; this.cameraPosition = null; this.cameraAltitude = null;
+    this.updateSchema();
+    if (!this.ready) return;
+    this.map.getSource('journey-active').setData(feature(this.routes[index].points));
+    this.markers.forEach(m => m.remove());
+    this.markers = (this.stages[index].stops || []).map((stop, i) => {
+      const button = document.createElement('button'); button.className = 'route-marker'; button.textContent = String(i + 1); button.setAttribute('aria-label', `${stop.title}${stop.approximate ? ', ungefährer Ort' : ''}`);
+      button.addEventListener('click', () => this.onStop(stop));
+      return new window.mapboxgl.Marker({ element: button }).setLngLat(pointAt(this.routes[index], stop.progress)).addTo(this.map);
+    });
+    this.setProgress(0, false); this.flyToRoutePoint(0);
+  }
+  cancelCameraMotion() {
+    this.motionVersion = (this.motionVersion || 0) + 1;
+    if (this.nativeMotion) this.map?.off?.('moveend', this.nativeMotion);
+    this.nativeMotion = null; this.entry = null; this.followRequested = false;
+    this.preparingFollow = false; this.waitingForTerrain = false; this.following = false;
+    this.map?.stop();
+  }
+  pauseCamera() {
+    this.followRequested = false;
+    if (this.entry || this.nativeMotion || this.preparingFollow) this.cancelCameraMotion();
+  }
+  animateNavigation(action) {
+    this.cancelCameraMotion();
+    const currentMap = this.map, version = this.motionVersion;
+    const complete = () => {
+      if (this.map !== currentMap || version !== this.motionVersion) return;
+      currentMap.off('moveend', complete);
+      this.nativeMotion = null;
+      if (this.followRequested) this.setProgress(this.progress);
+    };
+    this.nativeMotion = complete;
+    currentMap.on('moveend', complete);
+    action();
+  }
+  flyToRoutePoint(progress) {
+    if (!this.ready) return;
+    const route = this.routes[this.stageIndex], center = pointAt(route, progress);
+    const heading = bearing(pointAt(route, clamp(progress - 300 / route.length)), pointAt(route, clamp(progress + 450 / route.length)));
+    this.animateNavigation(() => this.map.flyTo({ center, zoom: 12.4, pitch: 50, bearing: heading, padding: { top: 0, bottom: 0, left: 0, right: 0 }, duration: this.reducedMotion() ? 0 : 2600, curve: 1.4 }));
+  }
+  beginEntry(target) {
+    const start = this.map.getFreeCameraOptions();
+    if (this.reducedMotion() || !start.position || !start.orientation || !target.orientation) {
+      this.map.setFreeCameraOptions(target); this.following = true; return;
+    }
+    this.map.stop();
+    const snapshot = pose => ({ position: { x: pose.position.x, y: pose.position.y, z: pose.position.z }, orientation: [...pose.orientation] });
+    this.entry = { from: snapshot(start), to: snapshot(target), startedAt: performance.now(), duration: 2200 };
+  }
+  advanceCamera(now) {
+    if (this.entry && this.ready) {
+      const entry = this.entry, t = clamp((now - entry.startedAt) / entry.duration);
+      const pose = interpolateCamera(entry.from, entry.to, t);
+      const camera = this.map.getFreeCameraOptions();
+      camera.position = new window.mapboxgl.MercatorCoordinate(pose.position.x, pose.position.y, pose.position.z);
+      camera.orientation = pose.orientation;
+      this.map.setFreeCameraOptions(camera);
+      if (t >= 1) { this.entry = null; this.following = true; }
+    }
+    return Boolean(this.map && (!this.ready || this.nativeMotion || this.entry || this.preparingFollow));
+  }
+  fitStage() {
+    if (!this.ready) return;
+    const points = this.routes[this.stageIndex].points;
+    const bounds = points.reduce((b, p) => b.extend(p), new window.mapboxgl.LngLatBounds(points[0], points[0]));
+    const padding = this.map.getContainer().clientWidth > 650 ? { top: 100, bottom: 200, left: 350, right: 65 } : { top: 100, bottom: 170, left: 35, right: 35 };
+    this.animateNavigation(() => this.map.fitBounds(bounds, { padding, pitch: 50, duration: this.reducedMotion() ? 0 : 2600, maxZoom: 13 }));
+  }
+  overview() {
+    if (!this.ready) return;
+    const points = this.routes.flatMap(r => r.points);
+    const bounds = points.reduce((b, p) => b.extend(p), new window.mapboxgl.LngLatBounds(points[0], points[0]));
+    this.animateNavigation(() => this.map.fitBounds(bounds, { padding: { top: 80, bottom: 190, left: 50, right: 50 }, pitch: 35, duration: this.reducedMotion() ? 0 : 2600 }));
+  }
+  setExplore(exploring) {
+    this.exploring = exploring;
+    if (!this.map || this.appliedExplore === exploring) return;
+    if (this.appliedExplore !== null) this.cancelCameraMotion();
+    this.appliedExplore = exploring;
+    for (const key of ['scrollZoom', 'boxZoom', 'dragRotate', 'dragPan', 'keyboard', 'doubleClickZoom', 'touchZoomRotate']) this.map[key]?.[exploring ? 'enable' : 'disable']();
+    if (exploring && this.ready) this.fitStage();
+  }
+  reducedMotion() { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  setProgress(progress, follow = true, delta = 1 / 60) {
+    this.progress = progress; this.updateSchema();
+    if (!this.ready) return;
+    const route = this.routes[this.stageIndex];
+    this.map.getSource('journey-travelled').setData(feature(sliceRoute(route, progress)));
+    if (!follow || this.exploring) return;
+    this.followRequested = true;
+    if (this.nativeMotion || this.entry) return;
+    const target = pointAt(route, clamp(progress + 450 / route.length));
+    if (!this.following && this.map.getBounds && !this.map.getBounds().contains(target)) {
+      this.flyToRoutePoint(progress); this.followRequested = true; return;
+    }
+    const behind = pointAt(route, clamp(progress - 300 / route.length));
+    const heading = bearing(behind, target);
+    const desired = destination(pointAt(route, progress), 1800, heading + 180);
+    const blend = this.following && this.cameraPosition ? 1 - Math.exp(-Math.min(delta, .1) * 2.5) : 1;
+    this.cameraPosition = this.cameraPosition ? this.cameraPosition.map((v, i) => v + (desired[i] - v) * blend) : desired;
+    // Probe the camera-to-target corridor, not only the ground under the camera.
+    const samples = Array.from({ length: 13 }, (_, i) => {
+      const t = i / 12;
+      const p = [this.cameraPosition[0] * (1 - t) + target[0] * t, this.cameraPosition[1] * (1 - t) + target[1] * t];
+      return this.map.queryTerrainElevation(p, { exaggerated: false });
+    });
+    if (samples.some(v => v === null)) {
+      this.preparingFollow = !this.following;
+      // Retry once tiles settle, even if a photo stop has paused the timeline meanwhile.
+      if (!this.waitingForTerrain) {
+        this.waitingForTerrain = true;
+        const currentMap = this.map, version = this.motionVersion;
+        currentMap.once('idle', () => {
+          if (currentMap !== this.map || version !== this.motionVersion) return;
+          this.waitingForTerrain = false;
+          if (this.ready && !this.exploring && this.followRequested) this.setProgress(this.progress, true, .1);
+        });
+      }
+      return;
+    }
+    this.preparingFollow = false;
+    const desiredAltitude = Math.max(...samples) + 1700;
+    this.cameraAltitude = this.cameraAltitude === null ? desiredAltitude : Math.max(desiredAltitude, this.cameraAltitude + (desiredAltitude - this.cameraAltitude) * blend);
+    const camera = this.map.getFreeCameraOptions();
+    camera.position = window.mapboxgl.MercatorCoordinate.fromLngLat(this.cameraPosition, this.cameraAltitude);
+    camera.lookAtPoint({ lng: target[0], lat: target[1] });
+    if (!this.following) this.beginEntry(camera);
+    else this.map.setFreeCameraOptions(camera);
+  }
+}

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#183b36">
+  <meta name="description" content="27 Tage über die Alpen. Eine persönliche Reise in Bildern, Etappen und Begegnungen.">
+  <title>Traumpfad · 27 Tage über die Alpen</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/vendor/mapbox-gl.css">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/vendor/mapbox-gl.js" defer></script>
+  <script type="module" src="/js/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="Traumpfad, zur Startansicht"><span class="brand-mark" aria-hidden="true">↟</span><span>traumpfad<span class="brand-sub">MÜNCHEN — VENEDIG</span></span></a>
+    <nav class="mode-switch" aria-label="Ansicht"><button data-mode="presentation" aria-pressed="true">Präsentieren</button><button data-mode="explore" aria-pressed="false">Erkunden</button></nav>
+    <div class="header-actions"><span class="demo-label" id="demo-label">BEISPIELREISE</span><button class="icon-button" id="settings-button" aria-label="Karte und Einstellungen öffnen">⚙</button><button class="icon-button" id="fullscreen-button" aria-label="Vollbild umschalten">⛶</button></div>
+  </header>
+
+  <div class="workspace">
+    <aside class="sidebar" aria-label="Reiseübersicht">
+      <div class="sidebar-top"><p class="eyebrow">DEIN WEG ÜBER DIE ALPEN</p><h2>Schritt für Schritt.</h2><p class="sidebar-description">Von der Stadt in die Berge.<br>Und irgendwann ans Meer.</p></div>
+      <div class="chapter-picker"><label for="chapter-select">KAPITEL</label><select id="chapter-select"></select></div>
+      <nav id="stage-list" class="stage-list" aria-label="Tagesetappen"></nav>
+      <div class="sidebar-footer"><button class="text-button" id="preparation-button">Vor dem ersten Schritt <span>↗</span></button><button class="text-button" id="conclusion-button">Was von der Reise bleibt <span>↗</span></button><div class="trip-total"><span class="trip-total-number">27</span><span>Tage unterwegs.<br>Unzählige Erinnerungen.</span></div></div>
+    </aside>
+
+    <main id="main" class="main">
+      <div id="map" aria-label="Interaktive 3D-Karte deiner Reise"></div>
+      <div id="schematic" class="schematic" aria-label="Schematische Vorschau der Beispieletappen"></div>
+      <div class="map-shade" aria-hidden="true"></div>
+      <div class="map-topline"><span class="map-status" id="map-status"><span class="status-dot"></span>Schematische Vorschau</span><button class="map-connect" id="connect-button">Satellitenkarte verbinden ↗</button></div>
+
+      <section class="cover" id="cover" aria-labelledby="cover-title"><p class="eyebrow light">EINE REISE, DIE BLEIBT.</p><h1 id="cover-title">27 Tage.<br>Ein Weg.</h1><p class="cover-description">Zu Fuß über die Alpen.<br>Von München nach Venedig.</p><button class="button button-gold" id="start-button">Die Reise beginnen <span aria-hidden="true">↗</span></button><p class="cover-note" id="cover-note">Entdecke die erste Woche mit Beispieletappen.</p></section>
+
+      <section class="stage-card" id="stage-card" hidden aria-label="Aktuelle Etappe"><p class="eyebrow" id="stage-kicker"></p><h1 id="stage-title"></h1><p id="stage-description"></p><div class="stage-facts" id="stage-facts"></div><button class="text-button" id="gallery-button">Tagesgalerie öffnen <span>↗</span></button></section>
+
+      <div class="map-caption" id="route-caption">Schematischer Beispielverlauf · keine tatsächliche Wanderaufzeichnung</div>
+      <div id="notice" class="notice" role="status" hidden></div>
+
+      <section class="player" aria-label="Präsentationssteuerung">
+        <div class="player-heading"><div><span class="eyebrow" id="player-kicker">DEIN ABENTEUER</span><strong id="player-title">Der erste Schritt wartet.</strong></div><span id="player-time" class="player-time">01 / 07</span></div>
+        <label class="sr-only" for="route-progress">Fortschritt der Etappe</label><input id="route-progress" class="route-progress" type="range" min="0" max="1000" value="0" step="1" aria-valuetext="Noch nicht gestartet">
+        <div class="player-controls"><div class="transport"><button id="previous-button" class="transport-button" aria-label="Vorheriger Fotostopp">⏮</button><button id="play-button" class="play-button" aria-label="Flug starten">▶</button><button id="next-button" class="transport-button" aria-label="Nächster Fotostopp">⏭</button><span id="player-status" class="player-status">Bereit zum Aufbruch</span></div><div class="player-options"><label for="speed-select" class="sr-only">Fluggeschwindigkeit</label><select id="speed-select" aria-label="Fluggeschwindigkeit"><option value="0.5">0,5×</option><option value="1" selected>1×</option><option value="2">2×</option></select><button class="text-button small" id="overview-button">Übersicht ↗</button></div></div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="photo-dialog" class="photo-dialog" aria-labelledby="photo-title"><div class="photo-layout"><div class="photo-visual" id="photo-visual"></div><div class="photo-story"><div class="dialog-top"><span class="eyebrow" id="photo-kicker"></span><button class="icon-button" data-close="photo-dialog" aria-label="Fotostopp schließen">×</button></div><p class="location-note" id="photo-location"></p><h2 id="photo-title"></h2><p id="photo-caption" class="story-copy"></p><p id="photo-credit" class="photo-credit"></p><div class="photo-navigation"><button id="photo-previous" class="icon-button" aria-label="Vorheriges Bild">←</button><span id="photo-count"></span><button id="photo-next" class="icon-button" aria-label="Nächstes Bild">→</button></div><button class="button button-green" id="continue-button">Weiter auf dem Weg <span>↗</span></button></div></div></dialog>
+
+  <dialog id="gallery-dialog" class="gallery-dialog" aria-labelledby="gallery-title"><div class="dialog-top"><div><p class="eyebrow" id="gallery-kicker"></p><h2 id="gallery-title">Tagesgalerie</h2></div><button class="icon-button" data-close="gallery-dialog" aria-label="Galerie schließen">×</button></div><p id="gallery-description"></p><div id="gallery-grid" class="gallery-grid"></div></dialog>
+
+  <dialog id="settings-dialog" class="settings-dialog" aria-labelledby="settings-title"><div class="dialog-top"><p class="eyebrow">DEINE LOKALE REISE-APP</p><button class="icon-button" data-close="settings-dialog" aria-label="Einstellungen schließen">×</button></div><h2 id="settings-title">Die Berge in 3D.</h2><p>Verbinde Mapbox für Satellitenbilder und räumliches Gelände. Deine persönlichen Fotos bleiben auf diesem Mac.</p><p class="field-help">Satellitenbilder sind im Mapbox-Testzugang ohne Zahlungsmethode nicht verfügbar. Nach der Freischaltung gelten monatliche Freikontingente; Nutzung darüber hinaus wird berechnet. <a href="https://docs.mapbox.com/accounts/guides/signup/#limits" target="_blank" rel="noopener noreferrer">Mapbox-Zugriff und Kosten ↗</a></p><form id="token-form"><label for="mapbox-token">Öffentlicher Mapbox-Zugangsschlüssel</label><input id="mapbox-token" type="password" placeholder="pk.…" autocomplete="off" spellcheck="false"><p class="field-help">Der Schlüssel beginnt mit <code>pk.</code> und wird nur in diesem Browser gespeichert. Ein im lokalen Server hinterlegter Schlüssel kann alternativ verwendet werden.</p><button type="submit" class="button button-green">Satellitenkarte aktivieren ↗</button><button type="button" id="check-token" class="text-button">Schlüssel direkt bei Mapbox prüfen ↗</button><button type="button" id="remove-token" class="text-button">Gespeicherten Schlüssel entfernen</button><p id="token-message" role="status"></p></form><hr><section class="cache-panel" aria-labelledby="cache-title"><h3 id="cache-title">Karten im Browser speichern</h3><p>Geladene Kacheln werden von Mapbox automatisch in diesem Browser zwischengespeichert. Spiele eine Etappe ab und rufe sie anschließend im selben Browser erneut auf.</p><p id="cache-message" role="status">Öffne eine Etappe, um den Browsercache zu füllen.</p><button type="button" id="check-cache" class="text-button">Browsercache prüfen ↻</button><p class="field-help">Die Prüfung liest nur den lokalen Speicher und lädt keine Karten nach. Der Browser kann gespeicherte Daten entfernen; für fehlende oder abgelaufene Kacheln bleibt Internet nötig.</p></section><hr><h3>Dein Material hinzufügen</h3><p>Exportiere deine Originale in <code>Material/fotos-originale</code>. Import und Etappenpflege sind in der beiliegenden Anleitung beschrieben.</p><p class="small muted">Ohne Schlüssel oder Kartenverbindung kannst du die schematische Vorschau und deine lokalen Galerien nutzen.</p></dialog>
+
+  <dialog id="story-dialog" class="story-dialog" aria-labelledby="story-title"><div class="dialog-top"><p class="eyebrow" id="story-kicker"></p><button class="icon-button" data-close="story-dialog" aria-label="Kapitel schließen">×</button></div><h2 id="story-title"></h2><div id="story-content"></div><button class="button button-green" data-close="story-dialog">Zurück zur Reise ↗</button></dialog>
+  <div id="live-region" class="sr-only" aria-live="polite"></div>
+</body>
+</html>

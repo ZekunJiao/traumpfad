@@ -1,0 +1,36 @@
+{
+  "type": "Feature",
+  "properties": {
+    "kind": "schematic",
+    "note": "Schematische Demonstration. Keine tatsächliche Wanderaufzeichnung und nicht zur Navigation geeignet."
+  },
+  "geometry": {
+    "type": "LineString",
+    "coordinates": [
+      [
+        11.465,
+        47.66
+      ],
+      [
+        11.445,
+        47.643
+      ],
+      [
+        11.438,
+        47.615
+      ],
+      [
+        11.425,
+        47.592
+      ],
+      [
+        11.438,
+        47.569
+      ],
+      [
+        11.458,
+        47.559
+      ]
+    ]
+  }
+}
