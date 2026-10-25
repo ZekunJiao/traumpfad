@@ -265,9 +265,9 @@ export class JourneyMap {
     });
     map.on('mousemove', event => {
       if (!this.ready || map !== this.map) return;
-      map.getCanvas().style.cursor = featureIndices(event.point).length ? 'pointer' : '';
+      map.getCanvas().style.cursor = this.editPlacement ? 'crosshair' : featureIndices(event.point).length ? 'pointer' : '';
     });
-    map.on('mouseout', () => { if (map === this.map) map.getCanvas().style.cursor = ''; });
+    map.on('mouseout', () => { if (map === this.map) map.getCanvas().style.cursor = this.editPlacement ? 'crosshair' : ''; });
   }
   updateLandmarkAltitudes() {
     if (!this.map || !this.landmarkMarkers.length) return;
@@ -283,9 +283,13 @@ export class JourneyMap {
     this.pendingStopProgress = null;
     this.cancelCameraMotion();
     this.stageIndex = index; this.progress = 0; this.cameraPosition = null; this.cameraAltitude = null; this.followHeading = null; this.cameraTarget = null; this.pathHeading = null;
-    this.updateSchema();
+    this.schemaPreviewStage = null; this.updateSchema();
     if (!this.ready) return;
     this.map.getSource('journey-active').setData(feature(this.routes[index].points, { stageIndex: index }));
+    this.renderStopMarkers(index);
+    this.setProgress(0, false); this.flyToRoutePoint(0);
+  }
+  renderStopMarkers(index) {
     this.markers.forEach(m => m.remove());
     this.markers = (this.stages[index].stops || []).map((stop, i) => {
       const button = this.createStopPreview ? this.createStopPreview(stop) : document.createElement('button');
@@ -297,7 +301,10 @@ export class JourneyMap {
       });
       return new window.mapboxgl.Marker({ element: button }).setLngLat(pointAt(this.routes[index], stop.progress)).addTo(this.map);
     });
-    this.setProgress(0, false); this.flyToRoutePoint(0);
+  }
+  refreshStops() {
+    this.schemaPreviewStage = null; this.updateSchema();
+    if (this.ready) this.renderStopMarkers(this.stageIndex);
   }
   focusStop(progress) {
     this.cancelCameraMotion(); this.cameraPosition = null; this.cameraAltitude = null; this.cameraTarget = null; this.pathHeading = null;

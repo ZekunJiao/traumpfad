@@ -1,5 +1,5 @@
 import { initDiskCache } from './disk-cache-ui.js';
-import { clamp, prepareRoute, validateJourney } from './route.js';
+import { clamp, nearestProgress, prepareRoute, validateJourney } from './route.js';
 import { TourPlayer } from './player.js';
 import { JourneyMap } from './map.js';
 import { checkMapboxConnection } from './token-check.js';
@@ -17,7 +17,7 @@ const text = (id, value) => { $(id).textContent = value ?? ''; };
 const formatDay = stage => stage.isFullRoute ? 'GESAMTSTRECKE' : `TAG ${String(stage.day).padStart(2, '0')}`;
 const formatDate = value => value ? new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'long', timeZone: 'Europe/Berlin' }).format(new Date(value + 'T12:00:00')) : 'Datum noch offen';
 const dialogs = [...document.querySelectorAll('dialog')];
-let journey, player, map, routes, collage, journeyTimeline, currentPhotoIds = [], currentPhotoIndex = 0, lastStage = -1, renderStatus = '', lastFrame = 0, noticeTimer, collageHideTimer, collageRevision = 0;
+let journey, player, map, routes, collage, journeyTimeline, currentPhotoIds = [], currentPhotoIndex = 0, lastStage = -1, renderStatus = '', lastFrame = 0, noticeTimer, collageHideTimer, collageRevision = 0, selectedEditorStopId = null, editorBusy = false;
 
 function announce(message) { text('live-region', message); }
 function notify(message) {
@@ -174,6 +174,15 @@ function placeholder(photo) {
 }
 function photoNode(photo, thumb = false) {
   if (!photo || photo.placeholder || !photo.file) return placeholder(photo);
+  const isVideo = photo.mediaType === 'video' || /\.(mp4|webm|mov)$/i.test(photo.file);
+  if (isVideo) {
+    if (thumb && photo.thumbnail) { const image = document.createElement('img'); image.src = '/' + photo.thumbnail; image.alt = photo.title || 'Vorschaubild eines Videos'; image.loading = 'lazy'; return image; }
+    if (thumb) return placeholder(photo);
+    const video = document.createElement('video'); video.src = '/' + photo.file; video.controls = true; video.playsInline = true; video.preload = 'metadata';
+    if (photo.thumbnail) video.poster = '/' + photo.thumbnail;
+    video.setAttribute('aria-label', photo.title || 'Reisevideo');
+    return video;
+  }
   const img = document.createElement('img');
   img.src = '/' + (thumb ? photo.thumbnail || photo.file : photo.file);
   img.alt = photo.alt || photo.title || photo.caption || 'Foto von der Reise'; img.decoding = 'async';
@@ -415,6 +424,151 @@ function updateTokenStorageStatus() {
 function storageGet() { try { return localStorage.getItem('traumpfad.mapbox-token') || ''; } catch { return ''; } }
 function storageSet(value) { try { if (value) localStorage.setItem('traumpfad.mapbox-token', value); else localStorage.removeItem('traumpfad.mapbox-token'); updateTokenStorageStatus(); } catch { notify('Der Browser erlaubt keine Speicherung. Der Schlüssel gilt für diese Sitzung.'); } }
 
+function editorStageIndex() { return Number($('editor-stage').value || player.state.stageIndex); }
+function editorStop() { return journey.stages[editorStageIndex()]?.stops?.find(stop => stop.id === selectedEditorStopId) || null; }
+function renderEditor() {
+  if (!journey || !$('editor-stage')) return;
+  const stageIndex = editorStageIndex(), stage = journey.stages[stageIndex];
+  $('editor-stop').replaceChildren();
+  const empty = element('option', '', stage.stops.length ? 'Fotopunkt auswählen' : 'Noch keine Fotopunkte'); empty.value = ''; $('editor-stop').append(empty);
+  for (const stop of stage.stops) { const option = element('option', '', `${stop.title || 'Fotopunkt'} · ${stop.photoIds?.length || 0} Medien`); option.value = stop.id; $('editor-stop').append(option); }
+  if (!stage.stops.some(stop => stop.id === selectedEditorStopId)) selectedEditorStopId = stage.stops[0]?.id || null;
+  $('editor-stop').value = selectedEditorStopId || '';
+  const stop = editorStop();
+  $('editor-stop-title').value = stop?.title || '';
+  $('editor-stop-caption').value = stop?.caption || '';
+  $('editor-move-stop').disabled = !stop;
+  $('editor-media-list').replaceChildren();
+  for (const photo of (stop?.photoIds || []).map(id => journey.photos.find(item => item.id === id)).filter(Boolean)) {
+    const label = element('li', '', `${photo.mediaType === 'video' ? 'Video' : 'Bild'} · ${photo.title || photo.originalName || 'Erinnerung'}`);
+    $('editor-media-list').append(label);
+  }
+  document.querySelectorAll('.map-photo-preview').forEach(button => button.classList.toggle('is-selected', button.dataset.stopId === selectedEditorStopId));
+}
+function openEditor() {
+  player.pause(); player.closeStop(); collage.hide();
+  $('editor-stage').value = String(player.state.stageIndex);
+  selectedEditorStopId = player.stage.stops[0]?.id || null;
+  renderEditor(); openDialog('editor-dialog');
+}
+function beginMapPlacement(mode) {
+  if (mode === 'move' && !editorStop()) return;
+  map.setEditPlacement(mode);
+  $('editor-dialog').close();
+  notify(mode === 'new' ? 'Klicke auf die gewünschte Stelle an der Route, um einen Fotopunkt anzulegen.' : 'Klicke auf die gewünschte Stelle an der Route, um den ausgewählten Fotopunkt zu verschieben.');
+}
+function finishMapPlacement(coordinates) {
+  const mode = map?.editPlacement;
+  if (!mode || !Array.isArray(coordinates)) return;
+  const stageIndex = player.state.stageIndex, stage = journey.stages[stageIndex], progress = nearestProgress(routes[stageIndex], coordinates);
+  if (mode === 'new') {
+    const stop = { id: `stopp-${crypto.randomUUID()}`, progress, title: 'Neuer Fotopunkt', approximate: true, caption: '', photoIds: [] };
+    stage.stops.push(stop); selectedEditorStopId = stop.id;
+  } else {
+    const stop = stage.stops.find(item => item.id === selectedEditorStopId);
+    if (!stop) { map.setEditPlacement(null); return; }
+    stop.progress = progress;
+  }
+  map.setEditPlacement(null); player.pause(); player.closeStop(); map.refreshStops(); renderEditor();
+  text('editor-message', `Position auf etwa ${Math.round(progress * 100)} % der Etappe gesetzt. Speichere deine Änderungen.`);
+  openDialog('editor-dialog');
+}
+function mediaTypeFor(file) {
+  const extension = file.name.split('.').at(-1).toLowerCase();
+  const known = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', avif: 'image/avif', gif: 'image/gif', mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime' };
+  const reported = file.type.toLowerCase();
+  return Object.values(known).includes(reported) ? reported : known[extension] || reported;
+}
+async function makeMediaThumbnail(file, videoFile) {
+  let source, release = () => {};
+  try {
+    if (videoFile) {
+      const url = URL.createObjectURL(file), video = document.createElement('video'); release = () => { URL.revokeObjectURL(url); video.removeAttribute('src'); };
+      video.src = url; video.muted = true; video.playsInline = true; video.preload = 'auto';
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('Video-Vorschaubild konnte nicht geladen werden.')), 12000);
+        const ready = () => { clearTimeout(timer); resolve(); };
+        video.addEventListener('loadedmetadata', () => { video.currentTime = Number.isFinite(video.duration) ? Math.min(.5, video.duration / 3) : 0; }, { once: true });
+        video.addEventListener('loadeddata', ready, { once: true }); video.addEventListener('seeked', ready, { once: true });
+        video.addEventListener('error', () => { clearTimeout(timer); reject(new Error('Video konnte nicht gelesen werden.')); }, { once: true });
+      });
+      source = video;
+    } else {
+      const bitmap = await createImageBitmap(file); source = bitmap; release = () => bitmap.close?.();
+    }
+    const width = source.videoWidth || source.width, height = source.videoHeight || source.height;
+    if (!width || !height) return null;
+    const scale = Math.min(1, 560 / Math.max(width, height)), canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(width * scale)); canvas.height = Math.max(1, Math.round(height * scale));
+    canvas.getContext('2d').drawImage(source, 0, 0, canvas.width, canvas.height);
+    return await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', .86));
+  } finally { release(); }
+}
+async function uploadFile(file, stage, stop) {
+  const mime = mediaTypeFor(file), isVideo = mime.startsWith('video/');
+  const assetId = crypto.randomUUID(), photoId = `upload-${assetId}`;
+  const send = async (blob, variant, contentType) => {
+    const response = await fetch('/api/media', { method: 'POST', headers: { 'Content-Type': contentType, 'X-Asset-Id': assetId, 'X-Asset-Variant': variant }, body: blob });
+    const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Datei konnte nicht gespeichert werden.');
+    return data.file;
+  };
+  const filePath = await send(file, 'original', mime);
+  let thumbnail;
+  try { const preview = await makeMediaThumbnail(file, isVideo); if (preview) thumbnail = await send(preview, 'thumbnail', 'image/jpeg'); } catch { /* The original remains usable when this browser cannot decode its preview. */ }
+  const title = file.name.replace(/\.[^.]+$/, '');
+  journey.photos.push({ id: photoId, mediaType: isVideo ? 'video' : 'image', originalName: file.name, file: filePath, ...(thumbnail ? { thumbnail } : {}), stageId: stage.id, assignment: 'manual', title, caption: '', placeholder: false });
+  if (stop) {
+    stop.photoIds = (stop.photoIds || []).filter(id => !journey.photos.find(photo => photo.id === id)?.placeholder);
+    stop.photoIds.push(photoId);
+  }
+}
+async function saveEditorChanges() {
+  if (editorBusy) return;
+  const stop = editorStop();
+  if (stop) { stop.title = $('editor-stop-title').value.trim() || 'Fotopunkt'; stop.caption = $('editor-stop-caption').value.trim(); }
+  const errors = validateJourney(journey);
+  if (errors.length) { text('editor-message', errors[0]); $('editor-message').dataset.error = 'true'; return; }
+  editorBusy = true; $('editor-save').disabled = true; text('editor-message', 'Änderungen werden auf diesem Mac gespeichert …');
+  try {
+    const response = await fetch('/api/journey', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(journey) });
+    const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Speichern fehlgeschlagen.');
+    $('editor-message').dataset.error = 'false'; text('editor-message', 'Gespeichert. Bilder, Videos und Fotopunkte bleiben lokal auf diesem Mac.');
+    $('demo-label').hidden = !journey.demo; map.refreshStops(); renderEditor();
+  } catch (error) { $('editor-message').dataset.error = 'true'; text('editor-message', error.message); }
+  finally { editorBusy = false; $('editor-save').disabled = false; }
+}
+function initEditor() {
+  journey.stages.forEach((stage, index) => { const option = element('option', '', `${formatDay(stage)} · ${stage.title}`); option.value = String(index); $('editor-stage').append(option); });
+  $('editor-stage').addEventListener('change', () => {
+    const index = editorStageIndex(); player.selectStage(index); selectedEditorStopId = journey.stages[index].stops[0]?.id || null; renderEditor();
+  });
+  $('editor-stop').addEventListener('change', () => { selectedEditorStopId = $('editor-stop').value || null; renderEditor(); });
+  $('editor-stop-title').addEventListener('input', () => {
+    const stop = editorStop(); if (!stop) return;
+    stop.title = $('editor-stop-title').value.trim() || 'Fotopunkt';
+    const option = [...$('editor-stop').options].find(item => item.value === stop.id);
+    if (option) option.textContent = `${stop.title} · ${stop.photoIds?.length || 0} Medien`;
+  });
+  $('editor-stop-caption').addEventListener('input', () => { const stop = editorStop(); if (stop) stop.caption = $('editor-stop-caption').value; });
+  $('editor-add-stop').addEventListener('click', () => beginMapPlacement('new'));
+  $('editor-move-stop').addEventListener('click', () => beginMapPlacement('move'));
+  $('editor-files').addEventListener('change', async event => {
+    const files = [...event.target.files], stage = journey.stages[editorStageIndex()], stop = editorStop();
+    event.target.value = '';
+    if (!files.length || editorBusy) return;
+    editorBusy = true; $('editor-save').disabled = true; $('editor-files').disabled = true; $('editor-stage').disabled = true; $('editor-stop').disabled = true;
+    try {
+      for (const [index, file] of files.entries()) {
+        text('editor-message', `Speichere Datei ${index + 1} von ${files.length}: ${file.name}`);
+        await uploadFile(file, stage, stop);
+      }
+      $('editor-message').dataset.error = 'false'; text('editor-message', `${files.length} Datei${files.length === 1 ? '' : 'en'} hinzugefügt. Änderungen noch speichern.`); renderEditor();
+    } catch (error) { $('editor-message').dataset.error = 'true'; text('editor-message', error.message); renderEditor(); }
+    finally { editorBusy = false; $('editor-save').disabled = false; $('editor-files').disabled = false; $('editor-stage').disabled = false; $('editor-stop').disabled = false; }
+  });
+  $('editor-save').addEventListener('click', saveEditorChanges);
+}
+
 async function refreshBrowserCache() {
   const button = $('check-cache');
   if (button.disabled) return;
@@ -441,7 +595,7 @@ async function init() {
   collage = new PhotoCollage({ loadPhoto: loadCollagePhoto, onChange: renderCollage, pageSize: collagePageSize() });
   const layoutObserver = new ResizeObserver(() => { collage.setPageSize(collagePageSize()); layoutCollage(); if (journeyTimeline) renderTimelineMarkers(journeyTimeline); });
   layoutObserver.observe($('main')); layoutObserver.observe($('route-timeline'));
-  map = new JourneyMap({ stages: journey.stages, routes, onStop: stop => player.openStop(stop, { manual: true }), onRouteSeek: (stageIndex, progress) => player.seekTo(stageIndex, progress), onStatus: mapStatus, createStopPreview: stopPreview, onHeading: bearing => {
+  map = new JourneyMap({ stages: journey.stages, routes, onStop: stop => player.openStop(stop, { manual: true }), onRouteSeek: (stageIndex, progress) => player.seekTo(stageIndex, progress), onMapPoint: finishMapPlacement, onStatus: mapStatus, createStopPreview: stopPreview, onHeading: bearing => {
     if (!Number.isFinite(bearing)) return;
     const degrees = ((bearing % 360) + 360) % 360;
     const direction = ['N', 'NO', 'O', 'SO', 'S', 'SW', 'W', 'NW'][Math.round(degrees / 45) % 8];
@@ -453,6 +607,7 @@ async function init() {
     announce('Frei erkunden. Der Flug pausiert. Mit Präsentieren zur geführten Kamera zurückkehren.');
   } });
   player = new TourPlayer(journey.stages, render);
+  initEditor();
   journeyTimeline = buildJourneyTimeline(journey.stages, routes);
   setupTimeline(journeyTimeline);
   buildNavigation();
@@ -497,6 +652,7 @@ async function init() {
     announce('Kamera kehrt zur aktuellen Routenposition zurück.');
   });
   $('gallery-button').addEventListener('click', openGallery);
+  $('editor-button').addEventListener('click', openEditor);
   $('settings-button').addEventListener('click', () => { player.pause(); openDialog('settings-dialog'); refreshBrowserCache(); });
   $('connect-button').addEventListener('click', () => { player.pause(); openDialog('settings-dialog'); refreshBrowserCache(); });
   $('check-cache').addEventListener('click', refreshBrowserCache);
@@ -525,6 +681,7 @@ async function init() {
   $('remove-token').addEventListener('click', () => { storageSet(''); $('mapbox-token').value = ''; map.setToken(config.mapboxToken || ''); text('token-message', config.mapboxToken ? 'Browser-Schlüssel entfernt. Der Schlüssel des lokalen Servers wird verwendet.' : 'Browser-Schlüssel entfernt. Die Vorschau bleibt verfügbar.'); });
   document.addEventListener('keydown', event => {
     if (event.altKey || event.metaKey || event.ctrlKey || ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName)) return;
+    if (event.key === 'Escape' && map.editPlacement) { map.setEditPlacement(null); notify('Platzierung abgebrochen.'); return; }
     if ($('photo-dialog').open) {
       if (event.code === 'Space') { event.preventDefault(); $('continue-button').click(); }
       else if (event.key === 'ArrowRight') { event.preventDefault(); $('photo-next').click(); }

@@ -26,6 +26,24 @@ export function pointAt(route, progress) {
   const a = route.points[low - 1], b = route.points[low];
   return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 }
+export function nearestProgress(route, point) {
+  const scale = Math.cos(radians(point[1]));
+  const x = value => (value[0] - point[0]) * scale;
+  const y = value => value[1] - point[1];
+  let bestDistance = Infinity, bestProgress = 0;
+  for (let i = 1; i < route.points.length; i++) {
+    const a = route.points[i - 1], b = route.points[i];
+    const ax = x(a), ay = y(a), dx = x(b) - ax, dy = y(b) - ay;
+    const denominator = dx * dx + dy * dy;
+    const t = denominator ? clamp(-((ax * dx) + (ay * dy)) / denominator) : 0;
+    const distanceSquared = (ax + dx * t) ** 2 + (ay + dy * t) ** 2;
+    if (distanceSquared < bestDistance) {
+      bestDistance = distanceSquared;
+      bestProgress = (route.cumulative[i - 1] + (route.cumulative[i] - route.cumulative[i - 1]) * t) / route.length;
+    }
+  }
+  return clamp(bestProgress);
+}
 export function sliceRoute(route, progress) {
   const target = clamp(progress) * route.length;
   const points = route.points.filter((_, i) => route.cumulative[i] < target);
